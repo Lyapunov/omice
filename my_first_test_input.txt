@@ -1,0 +1,6 @@
+# The first manual input file for testing my mini chess engine.
+# Will keep it just for keeping my mood up on the rainy days (and sorry for
+# the emotional headlines, English is my second language only).
+
+# How to double-check these lines: https://lichess.org/analysis
+
