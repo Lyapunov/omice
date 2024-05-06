@@ -347,6 +347,10 @@ ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) 
       set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
    }
 
+   if ( isEmpassant(from, to, stype ) ) {
+      set(to.towardCenter(), false, ChessFigure::None);
+   }
+
    color_ = !color_;
 
    enpassant_ = isFastPawn(from, to, stype) ? static_cast<char>('a' + to.col) : '-';

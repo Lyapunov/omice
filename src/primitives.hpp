@@ -9,9 +9,12 @@ constexpr unsigned NUMBER_OF_ROWS = 8;
 constexpr unsigned NUMBER_OF_COLS = 8;
 constexpr unsigned NUMBER_OF_CASTS = 4;
 constexpr unsigned FIRST_ROW = 0;
-constexpr unsigned FIRST_PAWN_ROW = 1;
 constexpr unsigned LAST_ROW = 7;
+constexpr unsigned FIRST_PAWN_ROW = 1;
 constexpr unsigned LAST_PAWN_ROW = 6;
+constexpr unsigned FIRST_EMP_ROW = 2;
+constexpr unsigned LAST_EMP_ROW = 5;
+constexpr unsigned HALF_ROW = 4;
 constexpr unsigned CASTS_SIDES = 2;
 constexpr unsigned LONG_CASTLE_KING = 2;
 constexpr unsigned LONG_CASTLE_ROOK = 3;
@@ -68,6 +71,7 @@ struct Pos {
       os << "{" << row << ", " << col << "}";
    }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
+   Pos towardCenter() const { return Pos(row < static_cast<int>(HALF_ROW) ? row + 1 : row - 1, col); }
    int row;
    int col;
 };
@@ -129,7 +133,7 @@ bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
    if ( enpassant == '-' ) {
       return false;
    }
-   if ( to.row != static_cast<int>(color ? LAST_PAWN_ROW : FIRST_PAWN_ROW ) ) {
+   if ( to.row != static_cast<int>(color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
       return false;
    }
    int ecol = int(enpassant - 'a');
@@ -284,7 +288,7 @@ struct ChessBoard {
          os << std::endl;
       }
       debugPrintRowSeparator(os);
-      os << "/" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/" << std::endl;
+      os << "/" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << std::endl;
    }
    std::array<ChessRow, NUMBER_OF_ROWS> data_;
    bool color_; // white = true, blue = false
