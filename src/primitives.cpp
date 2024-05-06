@@ -1,5 +1,7 @@
 #include "primitives.hpp"
 
+const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
+
 bool
 ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
    switch ( stype ) {
@@ -21,15 +23,15 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
             return false;
          }
          {
-            int dx = to.row > from.row ? +1 : -1;
-            int dy = to.col > from.col ? +1 : -1;
+            int dr = to.row > from.row ? +1 : -1;
+            int dc = to.col > from.col ? +1 : -1;
             Pos acc = from;
-            acc.move(dx,dy);
+            acc.move(dr,dc);
             while ( !(acc == to) ) {
                if ( getFigure(acc) != ChessFigure::None ) {
                   return false;
                }
-               acc.move(dx,dy);
+               acc.move(dr,dc);
             }
          }
          return true;
@@ -38,15 +40,15 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
             return false;
          }
          {
-            int dx = to.row > from.row ? +1 : (to.row == from.row ? 0 : -1);
-            int dy = to.col > from.col ? +1 : (to.col == from.col ? 0 : -1);
+            int dr = to.row > from.row ? +1 : (to.row == from.row ? 0 : -1);
+            int dc = to.col > from.col ? +1 : (to.col == from.col ? 0 : -1);
             Pos acc = from;
-            acc.move(dx,dy);
+            acc.move(dr,dc);
             while ( !(acc == to) ) {
                if ( getFigure(acc) != ChessFigure::None ) {
                   return false;
                }
-               acc.move(dx,dy);
+               acc.move(dr,dc);
             }
          }
          return true;
@@ -59,11 +61,48 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
          if ( abs(from.row - to.row) <= 1 ) {
             return false;
          }
-         // DON'T STEP INTO CHESS
+         if ( isInAttack(!color_, to) ) {
+            return false;
+         }
          return true;
       default:
          return false;
    }
+}
+
+bool
+ChessBoard::isCastleValid(const Pos& from, const Pos& to) const {
+   auto row = color_ ? FIRST_ROW : LAST_ROW;
+   if ( from.row != int(row) || to.row != int(row) ) {
+      return false;
+   }
+   bool longCastle = to.col < from.col;
+   // test king
+   {
+      int target = longCastle ? LONG_CASTLE_KING : SHORT_CASTLE_KING;
+      for ( int lcol = std::min(target,from.col); lcol <= std::max(target,from.col); lcol++ ) {
+         // is vacant?
+         Pos lpos(row, lcol);
+         if ( !(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None ) {
+            return false;
+         }
+         if ( isInAttack(!color_, lpos) ) {
+            return false;
+         }
+      }
+   }
+   // test rook
+   {
+      int target = longCastle ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK;
+      for ( int lcol = std::min(target,from.col); lcol <= std::max(target,from.col); lcol++ ) {
+         // is vacant?
+         Pos lpos(row, lcol);
+         if ( !(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None ) {
+            return false;
+         }
+      }
+   }
+   return true;
 }
 
 bool
@@ -96,11 +135,64 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    const auto tcolor = getColor(to);
    const auto ttype = getFigure(to);
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
+      if ( stype == ChessFigure::King && ttype == ChessFigure::Rook ) {
+         return isCastleValid(from, to);
+      }
       return false;
    }
    return (ttype != ChessFigure::None || isEmpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
           : isJumpValid(from, to, stype);
+}
+
+bool
+ChessBoard::isInAttack(bool attackerColor, const Pos& pos) const {
+   // Pawn
+   for ( const auto& pdir: PAWNDIRS ) {
+      auto tpos = pos.offset(Pos(attackerColor ? -1 : +1, pdir));
+      if ( getFigure(tpos) == ChessFigure::Pawn && getColor(tpos) == attackerColor ) {
+         return true;
+      }
+   }
+
+   // Knight
+   for ( const auto& kdir: KNIGHTDIRS ) {
+      auto tpos = pos.offset(kdir);
+      if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor ) {
+         return true;
+      }
+   }
+
+   for ( int dr = -1; dr <= 1; dr++ ) {
+      for ( int dc = -1; dc <= 1; dc++ ) {
+         if ( !dr && !dc ) {
+            continue;
+         }
+         Pos acc = pos;
+         acc.move(dr, dc);
+
+         // King
+         if ( getFigure(acc) == ChessFigure::King && getColor(acc) == attackerColor ) {
+            return true;
+         }
+
+         // Bishop, Rook, Queen
+         while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
+            acc.move(dr, dc);
+         }
+         if ( acc.valid() ) {
+            if ( getColor(acc) == attackerColor ) {
+               auto atype = getFigure(acc);
+               auto minorType = dr && dc ? ChessFigure::Bishop : ChessFigure::Rook;
+               if ( atype == ChessFigure::Queen || atype == minorType ) {
+                  return true;
+               }
+            }
+         }
+      }
+   }
+
+   return false;
 }
 
 static bool
@@ -125,6 +217,7 @@ ChessBoard::move(const std::string& desc) {
    int arow = -1;
    int bcol = -1;
    int brow = -1;
+   unsigned casts = 0;
    for ( const auto& chr : desc ) {
       if ( IsFigureChar(chr) ) {
          if ( type == ' ' ) {
@@ -134,8 +227,7 @@ ChessBoard::move(const std::string& desc) {
          } else {
             return false;
          }
-      }
-      if ( chr >= '1' && chr <= '9' ) {
+      } else if ( chr >= '1' && chr <= '9' ) {
          if ( brow == -1 )  {
             brow = chr - '1';
          } else if ( arow == -1 ) {
@@ -144,8 +236,7 @@ ChessBoard::move(const std::string& desc) {
          } else {
             return false;
          }
-      }
-      if ( chr >= 'a' && chr <= 'h' ) {
+      } else if ( chr >= 'a' && chr <= 'h' ) {
          if ( bcol == -1 )  {
             bcol = chr - 'a';
          } else if ( acol == -1 ) {
@@ -154,12 +245,35 @@ ChessBoard::move(const std::string& desc) {
          } else {
             return false;
          }
-      }
-      if ( chr == '=' ) {
+      } else if ( chr == '=' ) {
          if ( type == ' ' ) {
            type = 'P';
          }
+      } else if ( chr == 'O' || chr == 'o' ) {
+         casts++;
       }
+   }
+   if ( casts > 0 ) {
+      if ( type != ' ' || prom != ' ' || acol != -1 || arow != -1 || bcol != -1 || brow != -1) {
+         return false;
+      }
+      Pos kpos;
+      if (! find(color_, ChessFigure::King, kpos) ) {
+         return false;
+      }
+      if ( casts == 2 || casts == 3 ) {
+         // right-castle
+         auto pos = getCastPos(color_, casts == 3 ? 0 : 1);
+         if ( pos.valid() ) {
+            auto scolor = getColor(pos);
+            auto stype = getFigure(pos);
+            if ( scolor != color_ || stype != ChessFigure::Rook ) {
+               return false;
+            }
+         }
+         return move(kpos, pos); 
+      }
+      return false;
    }
    if ( type == ' ' ) {
      type = 'P';
@@ -199,9 +313,39 @@ ChessBoard::move(const std::string& desc) {
 void
 ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    const auto stype = getFigure(from);
+   const auto scolor = getColor(from);
 
-   set(from, false, ChessFigure::None);
-   set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
+   unsigned sofs = (scolor ? 0 : CASTS_SIDES);
+   if ( stype == ChessFigure::King ) {
+      casts_[sofs] = '-';
+      casts_[sofs+1] = '-';
+   } else if ( stype == ChessFigure::Rook ) {
+      if ( getCastPos(sofs) == from ) {
+         casts_[sofs] = '-';
+      }
+      if ( getCastPos(sofs+1) == from ) {
+         casts_[sofs+1] = '-';
+      }
+   }
+
+   const auto ttype = getFigure(to);
+   const auto tcolor = getColor(to);
+   if ( stype == ChessFigure::King && ttype == ChessFigure::Rook && scolor == tcolor ) { // castling
+      set(from, false, ChessFigure::None);
+      set(to,   false, ChessFigure::None);
+      if ( to.col < from.col ) {
+         // long castle
+         set(Pos(from.row, LONG_CASTLE_KING), color_, ChessFigure::King);
+         set(Pos(from.row, LONG_CASTLE_ROOK), color_, ChessFigure::Rook);
+      } else {
+         // short castle
+         set(Pos(from.row, SHORT_CASTLE_KING), color_, ChessFigure::King);
+         set(Pos(from.row, SHORT_CASTLE_ROOK), color_, ChessFigure::Rook);
+      }
+   } else {
+      set(from, false, ChessFigure::None);
+      set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
+   }
 
    color_ = !color_;
 

@@ -41,6 +41,10 @@ int main(int argc, char* argv[]) {
                   std::cout << "ERROR: " << tagtext << " cannot apply move " << toktext << std::endl;
                   valid = false;
                }
+               if ( !board.valid() ) {
+                  std::cout << "ERROR: " << tagtext << " move " << toktext << " led to failure" << std::endl;
+                  valid = false;
+               }
                tok = false;
             }
             auto tpos = line.find('#');
@@ -69,6 +73,10 @@ int main(int argc, char* argv[]) {
                      variant.push_back(toktext);
                      if ( valid && !board.move(toktext) ) {
                         std::cout << "ERROR: " << tagtext << " cannot apply move " << toktext << std::endl;
+                        valid = false;
+                     }
+                     if ( !board.valid() ) {
+                        std::cout << "ERROR: " << tagtext << " move " << toktext << " led to failure" << std::endl;
                         valid = false;
                      }
                      tok = false;
