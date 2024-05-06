@@ -26,6 +26,7 @@
 (SM) 1. d4 Nc6 2. Nf3 d5 3. Nbd2 h6 4. c4 e6 5. a3 g5 6. e3 dxc4 7. Be2 Be7
      8. Nxc4
 (SX) 1. e4 c5 2. a4 c4 3. b4 cxb3
+(SY) 1. e4 b5 2. e5 f5 3. exf6
 
 # Then some of my favourites
 
