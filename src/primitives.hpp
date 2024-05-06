@@ -15,27 +15,13 @@ constexpr unsigned LAST_PAWN_ROW = 6;
 constexpr char BOARD_DRAW_COL_SEPARATOR = '|';
 constexpr char BOARD_DRAW_ROW_SEPARATOR = '-';
 constexpr char BOARD_DRAW_CORNER= '*';
-const std::string FIGURE_CONVERTER = " pnbrqkPNBRQK ";
-const std::string FIGURE_CONVERTER_SAFE = " pn rqkPNBRQK ";
+constexpr bool WHITE = true;
+constexpr bool BLACK = false;
+const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
+const std::string FIGURE_CONVERTER_WHITE = " PNBRQK";
+const std::array<bool, 2> COLORS = {BLACK, WHITE};
 
 enum class ChessFigure {
-   None,
-   BlackPawn,
-   BlackKnight,
-   BlackBishop,
-   BlackRook,
-   BlackQueen,
-   BlackKing,
-   WhitePawn,
-   WhiteKnight,
-   WhiteBishop,
-   WhiteRook,
-   WhiteQueen,
-   WhiteKing,
-   NumberOfValues
-};
-
-enum class ChessFigureType {
    None,
    Pawn,
    Knight,
@@ -46,36 +32,37 @@ enum class ChessFigureType {
    NumberOfValues
 };
 
-char toChar( const ChessFigure& fig ) {
-   return FIGURE_CONVERTER[static_cast<unsigned>(fig)];
+char toChar( bool color, const ChessFigure fig ) {
+   return color
+          ? FIGURE_CONVERTER_WHITE[static_cast<unsigned>(fig)]
+          : FIGURE_CONVERTER_BLACK[static_cast<unsigned>(fig)];
 }
 
 ChessFigure toFigure( char chr ) {
-   auto pos = FIGURE_CONVERTER.find(chr);
-   return pos == std::string::npos ? ChessFigure::None : static_cast<ChessFigure>(pos);
-}
-
-ChessFigureType toType( const ChessFigure& fig ) {
-   if ( fig == ChessFigure::None ) {
-      return ChessFigureType::None;
+   auto posw = FIGURE_CONVERTER_WHITE.find(chr);
+   if ( posw != std::string::npos ) {
+      return static_cast<ChessFigure>(posw);
    }
-   if ( fig >= ChessFigure::WhitePawn ) {
-      return static_cast<ChessFigureType>(static_cast<unsigned>(ChessFigureType::Pawn) + ( static_cast<unsigned>(fig) - static_cast<unsigned>(ChessFigure::WhitePawn) ));
+   auto posb = FIGURE_CONVERTER_BLACK.find(chr);
+   if ( posb != std::string::npos ) {
+      return static_cast<ChessFigure>(posb);
    }
-   return static_cast<ChessFigureType>(static_cast<unsigned>(ChessFigureType::Pawn) + ( static_cast<unsigned>(fig) - static_cast<unsigned>(ChessFigure::BlackPawn) ));
-}
-
-ChessFigureType toType( char chr ) {
-   return toType(toFigure(chr));
-}
-
-bool hasColor( const ChessFigure& fig, bool color ) { // white = true, black = false 
-   return color == ( ChessFigure::WhitePawn <= fig );
+   return ChessFigure::None;
 }
 
 struct ChessRow {
-   ChessRow() : data_(0) { assert( static_cast<unsigned>(ChessFigure::NumberOfValues) < 16 ); } // update bit masks if fails! 
-   ChessFigure get(unsigned col) const { return static_cast<ChessFigure>((data_ >> (col << 2)) & 15); }
+   ChessRow() : data_(0) {}
+
+   void set(unsigned col, bool color, const ChessFigure& fig) {
+      assert( col >= 0 && col < NUMBER_OF_COLS );
+      clear(col);
+      unsigned mask = ((static_cast<unsigned>(fig) << 1)+color)<< (col << 2);
+      data_ |= mask;
+   }
+
+   ChessFigure getFigure(unsigned col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
+   bool getColor(unsigned col) const { return (data_ >> (col << 2)) & 1; }
+
    void clear() {
       data_ = 0;
    }
@@ -83,22 +70,16 @@ struct ChessRow {
       unsigned mask = ~(unsigned(15) << (col << 2));
       data_ &= mask;
    }
-   void set(unsigned col, const ChessFigure& figure) {
-      assert( col >= 0 && col < NUMBER_OF_COLS );
-      clear(col);
-      unsigned mask = static_cast<unsigned>(figure) << (col << 2);
-      data_ |= mask;
-   }
    void debugPrint(std::ostream& os, char separator) const {
      for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
-        os << separator << toChar(get(col));
+        os << separator << toChar(getColor(col), getFigure(col));
      }
      os << separator;
    }
-   unsigned count(const ChessFigure& fig) const {
+   unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
       for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
-         if ( get(col) == fig ) {
+         if ( getFigure(col) == fig && getColor(col) == color ) {
             retval++;
          }
       }
@@ -114,6 +95,9 @@ struct Pos {
    void nextCol(int num = 1) { col+= num; }
    void move(int dx, int dy) { row += dx; col += dy; }
    bool valid() const { return row >= 0 && col >= 0 && row < static_cast<int>(NUMBER_OF_ROWS) && col < static_cast<int>(NUMBER_OF_COLS); }
+   void debugPrint(std::ostream& os) const {
+      os << "{" << row << ", " << col << "}";
+   }
    int row;
    int col;
 };
@@ -144,11 +128,11 @@ struct ChessBoard {
          } else if ( elem >= '0' && elem <= '9' ) {
             pos.nextCol(elem - '0');
          } else {
-            auto figure = toFigure(elem);
-            if ( figure == ChessFigure::None ) {
+            auto fig = toFigure(elem);
+            if ( fig == ChessFigure::None ) {
                return false;
             }
-            set(pos, figure);
+            set(pos, isupper(elem), fig);
             pos.nextCol();
          }
       }
@@ -173,16 +157,15 @@ struct ChessBoard {
       }
    }
    bool valid() const {
-      if ( count(ChessFigure::BlackKing) != 1 || count(ChessFigure::WhiteKing) != 1 ) {
-         return false;
+      for ( const auto& color : COLORS ) {
+         if ( count(color, ChessFigure::King) != 1 ) {
+            return false;
+         }
+         if ( data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
+            return false;
+         }
       }
-      if ( data_[FIRST_ROW].count(ChessFigure::BlackPawn) ) {
-         return false;
-      }
-      if ( data_[LAST_ROW].count(ChessFigure::WhitePawn) ) {
-         return false;
-      }
-      return false;
+      return true;
    }
    void debugPrintRowSeparator(std::ostream& os) const {
       for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
@@ -190,46 +173,36 @@ struct ChessBoard {
       }
       os << BOARD_DRAW_CORNER << std::endl;
    }
-   ChessFigure get(const Pos& pos) const { return data_[pos.row].get(pos.col); }
-   void set(const Pos& pos, ChessFigure figure) {
+   bool getColor(const Pos& pos) const { return data_[pos.row].getColor(pos.col); }
+   ChessFigure getFigure(const Pos& pos) const { return data_[pos.row].getFigure(pos.col); }
+   void set(const Pos& pos, bool color, ChessFigure fig) {
       assert( pos.row >= 0 && pos.row < int(NUMBER_OF_ROWS) );
-      data_[pos.row].set(pos.col, figure);
+      data_[pos.row].set(pos.col, color, fig);
    }
-   bool isEmpassant(const Pos& from, const Pos& to, const ChessFigureType& stype) const {
-      return stype == ChessFigureType::Pawn && hasEnpassantColRank(enpassant_, to, color_);
+   bool isEmpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
+      return stype == ChessFigure::Pawn && hasEnpassantColRank(enpassant_, to, color_);
    }
-   bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& source) const {
-      return toType(source) == ChessFigureType::Pawn && to.row == static_cast<int>( color_ ? LAST_ROW : FIRST_ROW );
+   bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& stype) const {
+      return stype == ChessFigure::Pawn && to.row == static_cast<int>( color_ ? LAST_ROW : FIRST_ROW );
    }
-   bool isFastPawn(const Pos& from, const Pos& to, const ChessFigure& source) const {
-      return toType(source) == ChessFigureType::Pawn && abs(to.row - from.row) == 2;
+   bool isFastPawn(const Pos& from, const Pos& to, const ChessFigure& stype) const {
+      return stype == ChessFigure::Pawn && abs(to.row - from.row) == 2;
    }
 
-   bool isJumpValid(const Pos& from, const Pos& to, const ChessFigureType& stype ) const;
-   bool isTakeValid(const Pos& from, const Pos& to, const ChessFigureType& stype ) const;
+   bool isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
+   bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
 
-   unsigned count(const ChessFigure& fig) const {
+   unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
       for ( const auto& elem : data_ ) {
-         retval += elem.count(fig);
+         retval += elem.count(color, fig);
       }
       return retval;
    }
-   bool isFigureChar(char chr) {
-      if ( chr == ' ' ) {
-         return false;
-      }
 
-      auto fpos = FIGURE_CONVERTER_SAFE.find(chr);
-      if ( fpos == std::string::npos ) {
-         return false;
-      }
-      return true;
-   }
-
-   void doMove(const Pos& from, const Pos& to, const ChessFigureType promoteTo = ChessFigureType::Queen);
-   bool move(const Pos& from, const Pos& to, const ChessFigureType promoteTo = ChessFigureType::Queen); 
+   void doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
+   bool move(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen); 
    bool move(const std::string& desc);
 
    void debugPrint(std::ostream& os) const {
@@ -246,9 +219,7 @@ struct ChessBoard {
    char enpassant_;
 };
 
-std::ostream& operator<<(std::ostream& os, const ChessBoard& board) {
-   board.debugPrint(os);
-   return os;
-}
+std::ostream& operator<<(std::ostream& os, const ChessBoard& board);
+std::ostream& operator<<(std::ostream& os, const Pos& pos);
 
 #endif /* PRIMITIVES_H */
