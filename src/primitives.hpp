@@ -8,6 +8,7 @@
 constexpr unsigned NUMBER_OF_ROWS = 8;
 constexpr unsigned NUMBER_OF_COLS = 8;
 constexpr unsigned NUMBER_OF_CASTS = 4;
+constexpr unsigned NUMBER_OF_CLOCKS = 2;
 constexpr unsigned FIRST_ROW = 0;
 constexpr unsigned LAST_ROW = 7;
 constexpr unsigned FIRST_PAWN_ROW = 1;
@@ -20,6 +21,8 @@ constexpr unsigned LONG_CASTLE_KING = 2;
 constexpr unsigned LONG_CASTLE_ROOK = 3;
 constexpr unsigned SHORT_CASTLE_KING = 6;
 constexpr unsigned SHORT_CASTLE_ROOK = 5;
+constexpr unsigned HALF_CLOCK = 0;
+constexpr unsigned FULL_CLOCK = 1;
 
 constexpr char BOARD_DRAW_COL_SEPARATOR = '|';
 constexpr char BOARD_DRAW_ROW_SEPARATOR = '-';
@@ -142,8 +145,8 @@ bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
 }
 
 struct ChessBoard {
-   ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-') {}
-   bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant) {
+   ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-'), clocks_({0,0}) {}
+   bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
       Pos pos(NUMBER_OF_ROWS-1, 0);
       for ( const char elem : fen ) {
          if ( elem == '/' ) {
@@ -182,14 +185,16 @@ struct ChessBoard {
          }
          casts_[i] = casts[i];
       }
-      if ( enpassant.size() > 1 ) {
+      if ( enpassant.size() >= 1 ) {
          enpassant_ = enpassant[0];
       }
+      clocks_[HALF_CLOCK] = halfMoveClock;
+      clocks_[FULL_CLOCK] = fullClock;
       return true;
    }
    void init() {
       clear();
-      assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-") );
+      assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
    }
    void clear() {
       for ( auto& elem : data_ ) {
@@ -243,7 +248,7 @@ struct ChessBoard {
       assert( pos.row >= 0 && pos.row < int(NUMBER_OF_ROWS) );
       data_[pos.row].set(pos.col, color, fig);
    }
-   bool isEmpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
+   bool isEnpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && hasEnpassantColRank(enpassant_, to, color_);
    }
    bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& stype) const {
@@ -288,12 +293,13 @@ struct ChessBoard {
          os << std::endl;
       }
       debugPrintRowSeparator(os);
-      os << "/" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << std::endl;
+      os << (color_ ? "w" : "b") << " /" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << " C:" << unsigned(clocks_[FULL_CLOCK]) << "[" << unsigned(clocks_[HALF_CLOCK]) << "]" << std::endl;
    }
    std::array<ChessRow, NUMBER_OF_ROWS> data_;
    bool color_; // white = true, blue = false
    std::array<char, NUMBER_OF_CASTS> casts_;
    char enpassant_;
+   std::array<unsigned char, NUMBER_OF_CLOCKS> clocks_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ChessBoard& board);

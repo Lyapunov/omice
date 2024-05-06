@@ -140,7 +140,7 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
       }
       return false;
    }
-   return (ttype != ChessFigure::None || isEmpassant(from, to, stype))
+   return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
           : isJumpValid(from, to, stype);
 }
@@ -347,11 +347,21 @@ ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) 
       set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
    }
 
-   if ( isEmpassant(from, to, stype ) ) {
+   if ( isEnpassant(from, to, stype ) ) {
       set(to.towardCenter(), false, ChessFigure::None);
    }
 
    color_ = !color_;
+
+   if ( color_ == WHITE ) {
+      clocks_[FULL_CLOCK]++;
+   }
+
+   if ( stype == ChessFigure::Pawn || ttype != ChessFigure::None ) {
+      clocks_[HALF_CLOCK] = 0;
+   } else {
+      clocks_[HALF_CLOCK]++;
+   }
 
    enpassant_ = isFastPawn(from, to, stype) ? static_cast<char>('a' + to.col) : '-';
 }

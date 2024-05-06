@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS=-Wall -std=c++11
+CFLAGS=-O3 -funroll-loops -Wall -std=c++11
 APP=omice
 MERGE=omice.cpp
 SRC=src
