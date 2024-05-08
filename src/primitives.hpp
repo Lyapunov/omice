@@ -30,7 +30,6 @@ constexpr char BOARD_DRAW_CORNER= '*';
 constexpr bool WHITE = true;
 constexpr bool BLACK = false;
 const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
-const std::string FIGURE_CONVERTER_WHITE = " PNBRQK";
 const std::array<bool, 2> COLORS = {BLACK, WHITE};
 const std::array<int, 2> PAWNDIRS = {-1, +1};
 
@@ -45,21 +44,13 @@ enum class ChessFigure {
 };
 
 char toChar( bool color, const ChessFigure fig ) {
-   return color
-          ? FIGURE_CONVERTER_WHITE[static_cast<unsigned>(fig)]
-          : FIGURE_CONVERTER_BLACK[static_cast<unsigned>(fig)];
+   char chr = FIGURE_CONVERTER_BLACK[static_cast<unsigned>(fig)];
+   return color ? toupper(chr) : chr;
 }
 
 ChessFigure toFigure( char chr ) {
-   auto posw = FIGURE_CONVERTER_WHITE.find(chr);
-   if ( posw != std::string::npos ) {
-      return static_cast<ChessFigure>(posw);
-   }
-   auto posb = FIGURE_CONVERTER_BLACK.find(chr);
-   if ( posb != std::string::npos ) {
-      return static_cast<ChessFigure>(posb);
-   }
-   return ChessFigure::None;
+   auto posw = FIGURE_CONVERTER_BLACK.find(tolower(chr));
+   return posw != std::string::npos ? static_cast<ChessFigure>(posw) : ChessFigure::None;
 }
 
 struct Pos {
