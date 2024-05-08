@@ -160,15 +160,8 @@ ChessBoard::isInAttack(bool attackerColor, const Pos& pos) const {
 
 static bool
 IsFigureChar(char chr) {
-   if ( chr == ' ' ) {
-      return false;
-   }
    static const std::string FIGURE_CONVERTER_SAFE = "pnrqkPNBRQK";
-   auto fpos = FIGURE_CONVERTER_SAFE.find(chr);
-   if ( fpos == std::string::npos ) {
-      return false;
-   }
-   return true;
+   return chr != ' ' && FIGURE_CONVERTER_SAFE.find(chr) != std::string::npos;
 }
 
 bool

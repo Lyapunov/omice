@@ -133,10 +133,7 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
 }
 
 bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
-   if ( enpassant == '-' ) {
-      return false;
-   }
-   if ( to.row != static_cast<int>(color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
+   if ( enpassant == '-' || to.row != static_cast<int>(color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
       return false;
    }
    int ecol = int(enpassant - 'a');
