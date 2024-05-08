@@ -146,6 +146,15 @@ bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
 
 struct ChessBoard {
    ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-'), clocks_({0,0}) {}
+   void clear() {
+      for ( auto& elem : data_ ) {
+         elem.clear();
+      }
+      color_ = true;
+      casts_ = {'-', '-', '-', '-'};
+      enpassant_= '-';
+      clocks_ = {0, 0};
+   }
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
       Pos pos(NUMBER_OF_ROWS-1, 0);
       for ( const char elem : fen ) {
@@ -195,11 +204,6 @@ struct ChessBoard {
    void init() {
       clear();
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
-   }
-   void clear() {
-      for ( auto& elem : data_ ) {
-         elem.clear();
-      }
    }
    Pos getCastPos(unsigned i) const {
       if ( casts_[i] == '-' ) {
@@ -257,6 +261,7 @@ struct ChessBoard {
    bool isFastPawn(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && abs(to.row - from.row) == 2;
    }
+   bool testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const;
 
    bool isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;

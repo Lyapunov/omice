@@ -55,71 +55,37 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
       case ChessFigure::Queen:
          return isJumpValid(from, to, ChessFigure::Rook) || isJumpValid(from, to, ChessFigure::Bishop);
       case ChessFigure::King:
-         if ( abs(from.col - to.col) <= 1 ) {
-            return false;
-         }
-         if ( abs(from.row - to.row) <= 1 ) {
-            return false;
-         }
-         if ( isInAttack(!color_, to) ) {
-            return false;
-         }
-         return true;
+         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !isInAttack(!color_, to);
       default:
          return false;
    }
 }
 
 bool
-ChessBoard::isCastleValid(const Pos& from, const Pos& to) const {
-   auto row = color_ ? FIRST_ROW : LAST_ROW;
-   if ( from.row != int(row) || to.row != int(row) ) {
-      return false;
-   }
-   bool longCastle = to.col < from.col;
-   // test king
-   {
-      int target = longCastle ? LONG_CASTLE_KING : SHORT_CASTLE_KING;
-      for ( int lcol = std::min(target,from.col); lcol <= std::max(target,from.col); lcol++ ) {
-         // is vacant?
-         Pos lpos(row, lcol);
-         if ( !(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None ) {
-            return false;
-         }
-         if ( isInAttack(!color_, lpos) ) {
-            return false;
-         }
-      }
-   }
-   // test rook
-   {
-      int target = longCastle ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK;
-      for ( int lcol = std::min(target,from.col); lcol <= std::max(target,from.col); lcol++ ) {
-         // is vacant?
-         Pos lpos(row, lcol);
-         if ( !(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None ) {
-            return false;
-         }
+ChessBoard::testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const {
+   for ( int lcol = std::min(source, target); lcol <= std::max(source, target); lcol++ ) {
+      // is vacant?
+      Pos lpos(row, lcol);
+      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && isInAttack(!color_, lpos) ) ) {
+         return false;
       }
    }
    return true;
 }
 
 bool
+ChessBoard::isCastleValid(const Pos& from, const Pos& to) const {
+   auto row = color_ ? FIRST_ROW : LAST_ROW;
+   return from.row == int(row) && to.row == int(row)
+       && testCastleWalk(from, to, row, from.col, to.col < from.col ? LONG_CASTLE_KING : SHORT_CASTLE_KING, true)
+       && testCastleWalk(from, to, row, to.col,   to.col < from.col ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK, false);
+}
+
+bool
 ChessBoard::isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
-   switch ( stype ) {
-      case ChessFigure::Pawn:
-         if ( abs(from.col - to.col) != 1 ) {
-            return false;
-         }
-         if ( !( color_ ? from.row + 1 == to.row : from.row == to.row + 1 ) ) {
-            return false;
-         }
-         break;
-      default:
-         return isJumpValid(from, to, stype);
-   }
-   return true;
+   return stype == ChessFigure::Pawn
+          ? abs(from.col - to.col) == 1 && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 )
+          : isJumpValid(from, to, stype);
 }
 
 bool
@@ -135,10 +101,7 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    const auto tcolor = getColor(to);
    const auto ttype = getFigure(to);
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
-      if ( stype == ChessFigure::King && ttype == ChessFigure::Rook ) {
-         return isCastleValid(from, to);
-      }
-      return false;
+      return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
    return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
