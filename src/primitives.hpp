@@ -41,8 +41,7 @@ enum class ChessFigure {
    Bishop,
    Rook,
    Queen,
-   King,
-   NumberOfValues
+   King
 };
 
 char toChar( bool color, const ChessFigure fig ) {
