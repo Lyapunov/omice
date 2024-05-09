@@ -1,9 +1,10 @@
 # omice
 Oh, mice
 
-One more minimal chess engine
-Only my minimal chess engine
-An okayish Monte-Carlo chess engine
+What is O-mice?
+- One more minimal chess engine
+- Only my minimal chess engine
+- An okayish Monte-Carlo chess engine
 ...
 
 *Currently development in progress, once it's done I'll put a picture here*
@@ -40,3 +41,4 @@ Constraints:
    previous one, and while it must maintain the overall previous strenght,
    making sacrificies for improvements (like sportsmen do day and night) is
    not a goal. 
+ - 30 ms/moves on a recent CPU.
