@@ -7,7 +7,7 @@ What is O-mice?
 - An okayish Monte-Carlo chess engine
 ...
 
-*Currently development in progress, once it's done I'll put a picture here*
+*Currently development in progress, once it's done I'll put a picture here!*
 
 Constraints:
  - Minimal sources, one can print them out on a couple A4 pages to store them
@@ -41,4 +41,4 @@ Constraints:
    previous one, and while it must maintain the overall previous strenght,
    making sacrificies for improvements (like sportsmen do day and night) is
    not a goal. 
- - 30 ms/moves on a recent CPU.
+ - 30 ms per move on a recent CPU.
