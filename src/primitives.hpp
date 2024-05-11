@@ -5,18 +5,18 @@
 #include <cassert>
 #include <ostream>
 
-constexpr unsigned NUMBER_OF_ROWS = 8;
-constexpr unsigned NUMBER_OF_COLS = 8;
+constexpr int NUMBER_OF_ROWS = 8;
+constexpr int NUMBER_OF_COLS = 8;
 constexpr char NUMBER_OF_COLS_CHAR = 8;
 constexpr unsigned NUMBER_OF_CASTS = 4;
 constexpr unsigned NUMBER_OF_CLOCKS = 2;
-constexpr unsigned FIRST_ROW = 0;
-constexpr unsigned LAST_ROW = 7;
-constexpr unsigned FIRST_PAWN_ROW = 1;
-constexpr unsigned LAST_PAWN_ROW = 6;
-constexpr unsigned FIRST_EMP_ROW = 2;
-constexpr unsigned LAST_EMP_ROW = 5;
-constexpr unsigned HALF_ROW = 4;
+constexpr int FIRST_ROW = 0;
+constexpr int LAST_ROW = 7;
+constexpr int FIRST_PAWN_ROW = 1;
+constexpr int LAST_PAWN_ROW = 6;
+constexpr int FIRST_EMP_ROW = 2;
+constexpr int LAST_EMP_ROW = 5;
+constexpr int HALF_ROW = 4;
 constexpr unsigned CASTS_SIDES = 2;
 constexpr unsigned LONG_CASTLE_KING = 2;
 constexpr unsigned LONG_CASTLE_ROOK = 3;
@@ -60,10 +60,10 @@ struct Pos {
    void prevRow() { row--; col = 0; }
    void nextCol(int num = 1) { col+= num; }
    void move(int dx, int dy) { row += dx; col += dy; }
-   bool valid() const { return row >= 0 && col >= 0 && row < static_cast<int>(NUMBER_OF_ROWS) && col < static_cast<int>(NUMBER_OF_COLS); }
+   bool valid() const { return row >= 0 && col >= 0 && row < NUMBER_OF_ROWS && col < NUMBER_OF_COLS; }
    void debugPrint(std::ostream& os) const { os << "{" << row << ", " << col << "}"; }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
-   Pos towardCenter() const { return Pos(row < static_cast<int>(HALF_ROW) ? row + 1 : row - 1, col); }
+   Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
    int row;
    int col;
 };
@@ -117,7 +117,7 @@ struct ChessRow {
    bool find(const bool color, const ChessFigure& fig, Pos& result) const { return ( result.col = iter<Finder>(color, fig) ) >= 0; }
 
    void debugPrint(std::ostream& os, char separator) const {
-     for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
+     for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
         os << separator << toChar(getColor(col), getFigure(col));
      }
      os << separator;
@@ -131,11 +131,11 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
 }
 
 bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
-   if ( enpassant == '-' || to.row != static_cast<int>(color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
+   if ( enpassant == '-' || to.row != (color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
       return false;
    }
    int ecol = int(enpassant - 'a');
-   assert(ecol > 0 && ecol < static_cast<int>(NUMBER_OF_COLS));
+   assert(ecol > 0 && ecol < NUMBER_OF_COLS);
    return to.col == ecol;
 }
 
@@ -228,7 +228,7 @@ struct ChessBoard {
       return !isInAttackLine(color_, find(!color_, ChessFigure::King));
    }
    void debugPrintRowSeparator(std::ostream& os) const {
-      for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
+      for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
          os << BOARD_DRAW_CORNER << BOARD_DRAW_ROW_SEPARATOR;
       }
       os << BOARD_DRAW_CORNER << std::endl;
@@ -236,14 +236,14 @@ struct ChessBoard {
    bool getColor(const Pos& pos) const { return data_[pos.row].getColor(pos.col); }
    ChessFigure getFigure(const Pos& pos) const { return pos.valid() ? data_[pos.row].getFigure(pos.col) : ChessFigure::None; }
    void set(const Pos& pos, bool color, ChessFigure fig) {
-      assert( pos.row >= 0 && pos.row < int(NUMBER_OF_ROWS) );
+      assert( pos.row >= 0 && pos.row < NUMBER_OF_ROWS );
       data_[pos.row].set(pos.col, color, fig);
    }
    bool isEnpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && hasEnpassantColRank(enpassant_, to, color_);
    }
    bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& stype) const {
-      return stype == ChessFigure::Pawn && to.row == static_cast<int>( color_ ? LAST_ROW : FIRST_ROW );
+      return stype == ChessFigure::Pawn && to.row == ( color_ ? LAST_ROW : FIRST_ROW );
    }
    bool isFastPawn(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && abs(to.row - from.row) == 2;
@@ -266,7 +266,7 @@ struct ChessBoard {
 
    Pos find(const bool color, const ChessFigure& fig) const {
       Pos result;
-      for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
+      for ( int row = 0; row < NUMBER_OF_ROWS ; row++ ) {
          if ( data_[row].find(color, fig, result) ) {
             result.row = row;
             return result;

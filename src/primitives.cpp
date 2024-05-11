@@ -250,9 +250,9 @@ ChessBoard::move(const std::string& desc) {
       if ( type == ' ' ) {
          return false;
       }
-      for ( int row = 0; row < static_cast<int>(NUMBER_OF_ROWS); row++ ) {
+      for ( int row = 0; row < NUMBER_OF_ROWS; row++ ) {
          if ( arow == -1 || arow == row ) {
-            for ( int col = 0; col < static_cast<int>(NUMBER_OF_COLS); col++ ) {
+            for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
                if ( acol == -1 || acol == col ) {
                   auto source = Pos(row, col);
                   auto scolor = getColor(source);
