@@ -163,20 +163,7 @@ struct ChessBoard {
    Pos getCastPos(bool color, unsigned i) const {
       return getCastPos(i + (color ? 0 : CASTS_SIDES));
    }
-   bool valid() const {
-      for ( const auto& color : COLORS ) {
-         if ( count(color, ChessFigure::King) != 1 || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
-            return false;
-         }
-         for ( unsigned i = 0; i < CASTS_SIDES; i++ ) {
-            const auto pos = getCastPos(color, i);
-            if ( pos.valid() && !( getColor(pos) == color && getFigure(pos) == ChessFigure::Rook ) ) {
-               return false;
-            }
-         }
-      }
-      return !isInAttackLine(color_, find(!color_, ChessFigure::King));
-   }
+   bool valid() const;
    void debugPrintRowSeparator(std::ostream& os) const {
       for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
          os << BOARD_DRAW_CORNER << BOARD_DRAW_ROW_SEPARATOR;

@@ -51,6 +51,22 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
 }
 
 bool
+ChessBoard::valid() const {
+   for ( const auto& color : COLORS ) {
+      if ( count(color, ChessFigure::King) != 1 || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
+         return false;
+      }
+      for ( unsigned i = 0; i < CASTS_SIDES; i++ ) {
+         const auto pos = getCastPos(color, i);
+         if ( pos.valid() && !( getColor(pos) == color && getFigure(pos) == ChessFigure::Rook ) ) {
+            return false;
+         }
+      }
+   }
+   return !isInAttackLine(color_, find(!color_, ChessFigure::King));
+}
+
+bool
 ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
