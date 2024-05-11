@@ -23,6 +23,9 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
          pos.nextCol();
       }
    }
+   if ( white[0] != 'w' && white[0] != 'b' ) {
+      return false;
+   }
    color_ = ( white.size() >= 1 && white[0] == 'w' );
    casts_ = {'-', '-', '-', '-'};
    std::array<unsigned, 2> cpos = {0, 0};
@@ -41,6 +44,14 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
    return true;
+}
+
+bool
+ChessBoard::initFEN(const std::string& str) {
+   std::string fen, white, casts, enpassant;
+   unsigned halfMoveClock, fullClock;
+   std::stringstream(str) >> fen >> white >> casts >> enpassant >> halfMoveClock >> fullClock;
+   return initFEN(fen, white, casts, enpassant, halfMoveClock, fullClock);
 }
 
 bool
