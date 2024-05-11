@@ -4,11 +4,14 @@ const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2
 
 bool
 ChessBoard::initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
+   for ( auto& elem : data_ ) {
+      elem.clear();
+   }
    Pos pos(NUMBER_OF_ROWS-1, 0);
    for ( const char elem : fen ) {
       if ( elem == '/' ) {
          pos.prevRow();
-      } else if ( elem >= '0' && elem <= '9' ) {
+      } else if ( isdigit(elem) ) {
          pos.nextCol(elem - '0');
       } else {
          auto fig = toFigure(elem);
@@ -30,21 +33,10 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
       if ( cpos[color] >= CASTS_SIDES ) {
          return false;
       }
-      casts_[(color ? CASTS_SIDES : 0) + cpos[color]] = elem;
+      casts_[(color ? 0 : CASTS_SIDES) + cpos[color]] = elem;
       cpos[color]++;
    }
-   if ( casts.size() < NUMBER_OF_CASTS ) {
-      return false;
-   }
-   for ( unsigned i = 0; i < NUMBER_OF_CASTS; i++ ) {
-      if ( casts[i] != '-' && ( i < CASTS_SIDES ? !isupper(casts[i]) : isupper(casts[i]) ) ) {
-         return false;
-      }
-      casts_[i] = casts[i];
-   }
-   if ( enpassant.size() >= 1 ) {
-      enpassant_ = enpassant[0];
-   }
+   enpassant_ = enpassant.size() >= 1 ? enpassant[0] : '-';
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
    return true;
@@ -359,15 +351,8 @@ ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) 
    if ( stype == ChessFigure::King && ttype == ChessFigure::Rook && scolor == tcolor ) { // castling
       set(from, false, ChessFigure::None);
       set(to,   false, ChessFigure::None);
-      if ( to.col < from.col ) {
-         // long castle
-         set(Pos(from.row, LONG_CASTLE_KING), color_, ChessFigure::King);
-         set(Pos(from.row, LONG_CASTLE_ROOK), color_, ChessFigure::Rook);
-      } else {
-         // short castle
-         set(Pos(from.row, SHORT_CASTLE_KING), color_, ChessFigure::King);
-         set(Pos(from.row, SHORT_CASTLE_ROOK), color_, ChessFigure::Rook);
-      }
+      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_KING : SHORT_CASTLE_KING), color_, ChessFigure::King);
+      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK), color_, ChessFigure::Rook);
    } else {
       set(from, false, ChessFigure::None);
       set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
@@ -394,10 +379,7 @@ ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) 
 
 bool
 ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
-   if ( promoteTo == ChessFigure::Pawn ) {
-      return false;
-   }
-   if ( !isMoveValid(from, to) ) {
+   if ( promoteTo == ChessFigure::Pawn || !isMoveValid(from, to) ) {
       return false;
    }
    doMove(from, to, promoteTo);

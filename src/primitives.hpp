@@ -154,7 +154,6 @@ struct ChessBoard {
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
 
    void init() {
-      clear();
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
    }
    Pos getCastPos(unsigned i) const {
