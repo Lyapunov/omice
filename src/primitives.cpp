@@ -1,6 +1,7 @@
 #include "primitives.hpp"
 
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
+const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
 
 bool
 ChessBoard::initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
@@ -55,7 +56,7 @@ ChessBoard::valid() const {
          }
       }
    }
-   return !isInAttackLine(color_, find(!color_, ChessFigure::King));
+   return !hasWatcher(color_, find(!color_, ChessFigure::King));
 }
 
 bool
@@ -79,15 +80,14 @@ ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype
             return false;
          }
          {
-            int dr = to.row > from.row ? +1 : -1;
-            int dc = to.col > from.col ? +1 : -1;
             Pos acc = from;
-            acc.move(dr,dc);
+            Pos dir(to.row > from.row ? +1 : -1, to.col > from.col ? +1 : -1);
+            acc.move(dir);
             while ( !(acc == to) ) {
                if ( getFigure(acc) != ChessFigure::None ) {
                   return false;
                }
-               acc.move(dr,dc);
+               acc.move(dir);
             }
          }
          return true;
@@ -96,22 +96,21 @@ ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype
             return false;
          }
          {
-            int dr = to.row > from.row ? +1 : (to.row == from.row ? 0 : -1);
-            int dc = to.col > from.col ? +1 : (to.col == from.col ? 0 : -1);
             Pos acc = from;
-            acc.move(dr,dc);
+            Pos dir(to.row > from.row ? +1 : (to.row == from.row ? 0 : -1), to.col > from.col ? +1 : (to.col == from.col ? 0 : -1));
+            acc.move(dir);
             while ( !(acc == to) ) {
                if ( getFigure(acc) != ChessFigure::None ) {
                   return false;
                }
-               acc.move(dr,dc);
+               acc.move(dir);
             }
          }
          return true;
       case ChessFigure::Queen:
          return isStepValid(from, to, ChessFigure::Rook) || isStepValid(from, to, ChessFigure::Bishop);
       case ChessFigure::King:
-         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !isInAttackLine(!color_, to);
+         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !hasWatcher(!color_, to);
       default:
          return false;
    }
@@ -122,7 +121,7 @@ ChessBoard::testCastleWalk(const Pos& from, const Pos& to, int row, int source, 
    for ( int lcol = std::min(source, target); lcol <= std::max(source, target); lcol++ ) {
       // is vacant?
       Pos lpos(row, lcol);
-      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && isInAttackLine(!color_, lpos) ) ) {
+      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && hasWatcher(!color_, lpos) ) ) {
          return false;
       }
    }
@@ -164,17 +163,39 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
           : isStepValid(from, to, stype);
 }
 
+Pos
+ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
+   Pos acc = pos;
+   acc.move(dir);
+
+   // Pawn
+   if ( dir.col && dir.row == (attackerColor ? -1 : +1) && getFigure(acc) == ChessFigure::Pawn && getColor(acc) == attackerColor ) {
+      return pos;
+   }
+
+   // King
+   if ( getFigure(acc) == ChessFigure::King && getColor(acc) == attackerColor ) {
+      return pos;
+   }
+
+   // Bishop, Rook, Queen
+   while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
+      acc.move(dir);
+   }
+   auto minorType = dir.minorType();
+   if ( acc.valid() && getColor(acc) == attackerColor ) {
+      auto atype = getFigure(acc);
+      if ( atype == ChessFigure::Queen || atype == minorType ) {
+         return pos;
+      }
+   }
+   return INVALID;
+}
+
 bool
-ChessBoard::isInAttackLine(bool attackerColor, const Pos& pos) const {
+ChessBoard::hasWatcher(bool attackerColor, const Pos& pos) const {
    if ( !pos.valid() ) {
       return false;
-   }
-   // Pawn
-   for ( const auto& pdir: PAWNDIRS ) {
-      auto tpos = pos.offset(Pos(attackerColor ? -1 : +1, pdir));
-      if ( getFigure(tpos) == ChessFigure::Pawn && getColor(tpos) == attackerColor ) {
-         return true;
-      }
    }
 
    // Knight
@@ -185,31 +206,10 @@ ChessBoard::isInAttackLine(bool attackerColor, const Pos& pos) const {
       }
    }
 
-   for ( int dr = -1; dr <= 1; dr++ ) {
-      for ( int dc = -1; dc <= 1; dc++ ) {
-         if ( !dr && !dc ) {
-            continue;
-         }
-         Pos acc = pos;
-         acc.move(dr, dc);
-
-         // King
-         if ( getFigure(acc) == ChessFigure::King && getColor(acc) == attackerColor ) {
-            return true;
-         }
-
-         auto minorType = dr && dc ? ChessFigure::Bishop : ChessFigure::Rook;
-
-         // Bishop, Rook, Queen
-         while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
-            acc.move(dr, dc);
-         }
-         if ( acc.valid() && getColor(acc) == attackerColor ) {
-            auto atype = getFigure(acc);
-            if ( atype == ChessFigure::Queen || atype == minorType ) {
-               return true;
-            }
-         }
+   // Figures that are attacking through lines
+   for ( const auto& dir : DIRS ) {
+      if ( getWatcherFromLine(attackerColor, pos, dir).valid() ) {
+         return true;
       }
    }
 

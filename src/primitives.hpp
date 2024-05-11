@@ -59,11 +59,12 @@ struct Pos {
    bool equals( const Pos& rhs ) const { return row == rhs.row && col == rhs.col; }
    void prevRow() { row--; col = 0; }
    void nextCol(int num = 1) { col+= num; }
-   void move(int dx, int dy) { row += dx; col += dy; }
+   void move(const Pos& dir) { row += dir.row; col += dir.col; }
    bool valid() const { return row >= 0 && col >= 0 && row < NUMBER_OF_ROWS && col < NUMBER_OF_COLS; }
    void debugPrint(std::ostream& os) const { os << "{" << row << ", " << col << "}"; }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
+   ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
    int row;
    int col;
 };
@@ -181,7 +182,8 @@ struct ChessBoard {
    bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
-   bool isInAttackLine(const bool color, const Pos& pos) const;
+   Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
+   bool hasWatcher(const bool color, const Pos& pos) const;
 
    unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
