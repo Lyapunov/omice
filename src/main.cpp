@@ -93,7 +93,6 @@ int main(int argc, char* argv[]) {
                      valid = true;
                      tag = true;
                      tagtext = "";
-                     board.clear();
                      board.init();
                      variant.clear();
                   } else if ( elem >= '0' && elem <= '9' ) {

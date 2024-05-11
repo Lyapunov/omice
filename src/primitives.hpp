@@ -141,15 +141,6 @@ bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
 
 struct ChessBoard {
    ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-'), clocks_({0,0}) {}
-   void clear() {
-      for ( auto& elem : data_ ) {
-         elem.clear();
-      }
-      color_ = true;
-      casts_ = {'-', '-', '-', '-'};
-      enpassant_= '-';
-      clocks_ = {0, 0};
-   }
 
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
 
