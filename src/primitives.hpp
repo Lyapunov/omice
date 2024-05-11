@@ -7,6 +7,7 @@
 
 constexpr unsigned NUMBER_OF_ROWS = 8;
 constexpr unsigned NUMBER_OF_COLS = 8;
+constexpr char NUMBER_OF_COLS_CHAR = 8;
 constexpr unsigned NUMBER_OF_CASTS = 4;
 constexpr unsigned NUMBER_OF_CLOCKS = 2;
 constexpr unsigned FIRST_ROW = 0;
@@ -60,61 +61,68 @@ struct Pos {
    void nextCol(int num = 1) { col+= num; }
    void move(int dx, int dy) { row += dx; col += dy; }
    bool valid() const { return row >= 0 && col >= 0 && row < static_cast<int>(NUMBER_OF_ROWS) && col < static_cast<int>(NUMBER_OF_COLS); }
-   void debugPrint(std::ostream& os) const {
-      os << "{" << row << ", " << col << "}";
-   }
+   void debugPrint(std::ostream& os) const { os << "{" << row << ", " << col << "}"; }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos towardCenter() const { return Pos(row < static_cast<int>(HALF_ROW) ? row + 1 : row - 1, col); }
    int row;
    int col;
 };
 
+Pos INVALID(-1,-1);
+
 std::ostream& operator<<(std::ostream& os, const Pos& pos);
+
+struct Counter {
+   void add(char col) { value_++; }
+   char value_ = 0;
+   static constexpr bool QUICK = false;
+};
+
+struct Finder {
+   void add(char col) { value_ = col; }
+   char value_ = -1;
+   static constexpr bool QUICK = true;
+};
 
 struct ChessRow {
    ChessRow() : data_(0) {}
 
+   void clear() { data_ = 0; }
+   void clear(unsigned col) { data_ &= ~(unsigned(15) << (col << 2)); }
+
    void set(unsigned col, bool color, const ChessFigure& fig) {
-      assert( col >= 0 && col < NUMBER_OF_COLS );
       clear(col);
-      unsigned mask = ((static_cast<unsigned>(fig) << 1)+color)<< (col << 2);
-      data_ |= mask;
+      data_ |= (((static_cast<unsigned>(fig) << 1)+color) << (col << 2));
    }
 
    ChessFigure getFigure(unsigned col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
    bool getColor(unsigned col) const { return (data_ >> (col << 2)) & 1; }
 
-   void clear() {
-      data_ = 0;
+   template <class Collector>
+   char iter(const bool color, const ChessFigure& fig) const {
+      Collector coll;
+      auto acc = data_;
+      for ( char col = 0; col < NUMBER_OF_COLS_CHAR; col++ ) {
+         if ( static_cast<ChessFigure>((acc >> 1) & 7) == fig && (acc & 1) == color ) {
+            coll.add(col);
+            if ( Collector::QUICK ) {
+               return coll.value_;
+            }
+         }
+         acc >>= 4;
+      }
+      return coll.value_;
    }
-   void clear(unsigned col) {
-      unsigned mask = ~(unsigned(15) << (col << 2));
-      data_ &= mask;
-   }
+   unsigned count(const bool color, const ChessFigure& fig) const { return iter<Counter>(color, fig); }
+   bool find(const bool color, const ChessFigure& fig, Pos& result) const { return ( result.col = iter<Finder>(color, fig) ) >= 0; }
+
    void debugPrint(std::ostream& os, char separator) const {
      for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
         os << separator << toChar(getColor(col), getFigure(col));
      }
      os << separator;
    }
-   unsigned count(const bool color, const ChessFigure& fig) const {
-      unsigned retval = 0;
-      for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
-         if ( getFigure(col) == fig && getColor(col) == color ) {
-            retval++;
-         }
-      }
-      return retval;
-   }
-   bool find(const bool color, const ChessFigure& fig, Pos& result) const {
-      for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
-         if ( getFigure(col) == fig && getColor(col) == color ) {
-            result.col = int(col);
-            return true;
-         }
-      }
-      return false;
-   }
+
    unsigned data_;
 };
 
@@ -194,7 +202,7 @@ struct ChessBoard {
    }
    Pos getCastPos(unsigned i) const {
       if ( casts_[i] == '-' ) {
-         return Pos(-1,-1);
+         return INVALID;
       }
       bool color = i < CASTS_SIDES;
       auto col = toupper(casts_[i]) - 'A';
@@ -207,10 +215,7 @@ struct ChessBoard {
    }
    bool valid() const {
       for ( const auto& color : COLORS ) {
-         if ( count(color, ChessFigure::King) != 1 ) {
-            return false;
-         }
-         if ( data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
+         if ( count(color, ChessFigure::King) != 1 || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
             return false;
          }
          for ( unsigned i = 0; i < CASTS_SIDES; i++ ) {
@@ -220,12 +225,7 @@ struct ChessBoard {
             }
          }
       }
-      Pos kpos;
-      find(!color_, ChessFigure::King, kpos);
-      if ( isInAttack(color_, kpos) ) {
-         return false;
-      }
-      return true;
+      return !isInAttackLine(color_, find(!color_, ChessFigure::King));
    }
    void debugPrintRowSeparator(std::ostream& os) const {
       for ( unsigned col = 0; col < NUMBER_OF_COLS; col++ ) {
@@ -250,11 +250,11 @@ struct ChessBoard {
    }
    bool testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const;
 
-   bool isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
+   bool isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
-   bool isInAttack(const bool color, const Pos& pos) const;
+   bool isInAttackLine(const bool color, const Pos& pos) const;
 
    unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
@@ -264,14 +264,15 @@ struct ChessBoard {
       return retval;
    }
 
-   bool find(const bool color, const ChessFigure& fig, Pos& result) const {
+   Pos find(const bool color, const ChessFigure& fig) const {
+      Pos result;
       for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
          if ( data_[row].find(color, fig, result) ) {
             result.row = row;
-            return true;
+            return result;
          }
       }
-      return false;
+      return INVALID;
    }
 
    void doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);

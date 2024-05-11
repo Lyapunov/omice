@@ -3,7 +3,7 @@
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
 
 bool
-ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
+ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
          if ( from.col != to.col ) {
@@ -36,7 +36,7 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
          }
          return true;
       case ChessFigure::Rook:
-         if ( !(from.row == to.row || from.col == to.col ) ) {
+         if ( from.row != to.row && from.col != to.col ) {
             return false;
          }
          {
@@ -53,9 +53,9 @@ ChessBoard::isJumpValid(const Pos& from, const Pos& to, const ChessFigure& stype
          }
          return true;
       case ChessFigure::Queen:
-         return isJumpValid(from, to, ChessFigure::Rook) || isJumpValid(from, to, ChessFigure::Bishop);
+         return isStepValid(from, to, ChessFigure::Rook) || isStepValid(from, to, ChessFigure::Bishop);
       case ChessFigure::King:
-         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !isInAttack(!color_, to);
+         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !isInAttackLine(!color_, to);
       default:
          return false;
    }
@@ -66,7 +66,7 @@ ChessBoard::testCastleWalk(const Pos& from, const Pos& to, int row, int source, 
    for ( int lcol = std::min(source, target); lcol <= std::max(source, target); lcol++ ) {
       // is vacant?
       Pos lpos(row, lcol);
-      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && isInAttack(!color_, lpos) ) ) {
+      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && isInAttackLine(!color_, lpos) ) ) {
          return false;
       }
    }
@@ -85,7 +85,7 @@ bool
 ChessBoard::isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
    return stype == ChessFigure::Pawn
           ? abs(from.col - to.col) == 1 && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 )
-          : isJumpValid(from, to, stype);
+          : isStepValid(from, to, stype);
 }
 
 bool
@@ -105,11 +105,14 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    }
    return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
-          : isJumpValid(from, to, stype);
+          : isStepValid(from, to, stype);
 }
 
 bool
-ChessBoard::isInAttack(bool attackerColor, const Pos& pos) const {
+ChessBoard::isInAttackLine(bool attackerColor, const Pos& pos) const {
+   if ( !pos.valid() ) {
+      return false;
+   }
    // Pawn
    for ( const auto& pdir: PAWNDIRS ) {
       auto tpos = pos.offset(Pos(attackerColor ? -1 : +1, pdir));
@@ -139,17 +142,16 @@ ChessBoard::isInAttack(bool attackerColor, const Pos& pos) const {
             return true;
          }
 
+         auto minorType = dr && dc ? ChessFigure::Bishop : ChessFigure::Rook;
+
          // Bishop, Rook, Queen
          while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
             acc.move(dr, dc);
          }
-         if ( acc.valid() ) {
-            if ( getColor(acc) == attackerColor ) {
-               auto atype = getFigure(acc);
-               auto minorType = dr && dc ? ChessFigure::Bishop : ChessFigure::Rook;
-               if ( atype == ChessFigure::Queen || atype == minorType ) {
-                  return true;
-               }
+         if ( acc.valid() && getColor(acc) == attackerColor ) {
+            auto atype = getFigure(acc);
+            if ( atype == ChessFigure::Queen || atype == minorType ) {
+               return true;
             }
          }
       }
@@ -166,6 +168,10 @@ IsFigureChar(char chr) {
 
 bool
 ChessBoard::move(const std::string& desc) {
+   if ( !valid() ) {
+      return false;
+   }
+
    // format: nf6, Nf6, Ng8f6, g8f6, g8, g8=Q, g8=N ...
    char type = ' ';
    char prom = ' ';
@@ -213,8 +219,8 @@ ChessBoard::move(const std::string& desc) {
       if ( type != ' ' || prom != ' ' || acol != -1 || arow != -1 || bcol != -1 || brow != -1) {
          return false;
       }
-      Pos kpos;
-      if (! find(color_, ChessFigure::King, kpos) ) {
+      Pos kpos = find(color_, ChessFigure::King);
+      if ( !kpos.valid() ) {
          return false;
       }
       if ( casts == 2 || casts == 3 ) {
