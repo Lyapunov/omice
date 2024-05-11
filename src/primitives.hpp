@@ -18,10 +18,10 @@ constexpr int FIRST_EMP_ROW = 2;
 constexpr int LAST_EMP_ROW = 5;
 constexpr int HALF_ROW = 4;
 constexpr unsigned CASTS_SIDES = 2;
-constexpr unsigned LONG_CASTLE_KING = 2;
-constexpr unsigned LONG_CASTLE_ROOK = 3;
-constexpr unsigned SHORT_CASTLE_KING = 6;
-constexpr unsigned SHORT_CASTLE_ROOK = 5;
+constexpr int LONG_CASTLE_KING = 2;
+constexpr int LONG_CASTLE_ROOK = 3;
+constexpr int SHORT_CASTLE_KING = 6;
+constexpr int SHORT_CASTLE_ROOK = 5;
 constexpr unsigned HALF_CLOCK = 0;
 constexpr unsigned FULL_CLOCK = 1;
 
