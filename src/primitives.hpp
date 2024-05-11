@@ -150,52 +150,9 @@ struct ChessBoard {
       enpassant_= '-';
       clocks_ = {0, 0};
    }
-   bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
-      Pos pos(NUMBER_OF_ROWS-1, 0);
-      for ( const char elem : fen ) {
-         if ( elem == '/' ) {
-            pos.prevRow();
-         } else if ( elem >= '0' && elem <= '9' ) {
-            pos.nextCol(elem - '0');
-         } else {
-            auto fig = toFigure(elem);
-            if ( fig == ChessFigure::None ) {
-               return false;
-            }
-            set(pos, isupper(elem), fig);
-            pos.nextCol();
-         }
-      }
-      color_ = ( white.size() >= 1 && white[0] == 'w' );
-      casts_ = {'-', '-', '-', '-'};
-      std::array<unsigned, 2> cpos = {0, 0};
-      for ( const auto& elem : casts ) {
-         if ( elem == '-' ) {
-            continue;
-         }
-         bool color = isupper(elem);
-         if ( cpos[color] >= CASTS_SIDES ) {
-            return false;
-         }
-         casts_[(color ? CASTS_SIDES : 0) + cpos[color]] = elem;
-         cpos[color]++;
-      }
-      if ( casts.size() < NUMBER_OF_CASTS ) {
-         return false;
-      }
-      for ( unsigned i = 0; i < NUMBER_OF_CASTS; i++ ) {
-         if ( casts[i] != '-' && ( i < CASTS_SIDES ? !isupper(casts[i]) : isupper(casts[i]) ) ) {
-            return false;
-         }
-         casts_[i] = casts[i];
-      }
-      if ( enpassant.size() >= 1 ) {
-         enpassant_ = enpassant[0];
-      }
-      clocks_[HALF_CLOCK] = halfMoveClock;
-      clocks_[FULL_CLOCK] = fullClock;
-      return true;
-   }
+
+   bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
+
    void init() {
       clear();
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
