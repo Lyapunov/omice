@@ -211,7 +211,7 @@ struct ChessBoard {
       return INVALID;
    }
 
-   void doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
+   void applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
    bool move(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen); 
    bool move(const std::string& desc);
 

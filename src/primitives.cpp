@@ -329,7 +329,7 @@ ChessBoard::move(const std::string& desc) {
 }
 
 void
-ChessBoard::doMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
+ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    const auto stype = getFigure(from);
    const auto scolor = getColor(from);
 
@@ -382,7 +382,7 @@ ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    if ( promoteTo == ChessFigure::Pawn || !isMoveValid(from, to) ) {
       return false;
    }
-   doMove(from, to, promoteTo);
+   applyMove(from, to, promoteTo);
    return true;
 }
 
