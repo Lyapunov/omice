@@ -201,17 +201,10 @@ struct ChessBoard {
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
    }
    Pos getCastPos(unsigned i) const {
-      if ( casts_[i] == '-' ) {
-         return INVALID;
-      }
-      bool color = i < CASTS_SIDES;
-      auto col = toupper(casts_[i]) - 'A';
-      auto row = color ? FIRST_ROW : LAST_ROW;
-      return Pos(row, col);
+      return casts_[i] == '-' ? INVALID : Pos(i < CASTS_SIDES ? FIRST_ROW : LAST_ROW, toupper(casts_[i]) - 'A');
    }
    Pos getCastPos(bool color, unsigned i) const {
-      auto si = i + (color ? 0 : CASTS_SIDES);
-      return getCastPos(si);
+      return getCastPos(i + (color ? 0 : CASTS_SIDES));
    }
    bool valid() const {
       for ( const auto& color : COLORS ) {
