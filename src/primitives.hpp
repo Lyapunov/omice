@@ -95,6 +95,37 @@ struct Finder {
    static constexpr bool QUICK = true;
 };
 
+template <unsigned BITS = 6>
+struct MiniVector {
+   static constexpr size_t BYTESIZE = 8;
+   static constexpr size_t CAPACITY = (sizeof(unsigned long) * BYTESIZE -4) / BITS;
+   static constexpr unsigned long BITMASK = (1 << BITS)-1;
+   unsigned char size() const {return get(CAPACITY);}
+   unsigned char get(size_t i) const { return (storage_ >> (BITS * i)) & BITMASK; }
+   void clear(size_t i) { storage_ &= ~(BITMASK << (BITS*i)); }
+   void set(size_t i, unsigned char num) {
+      clear(i);
+      storage_ |= static_cast<unsigned long>(num & BITMASK) << (BITS*i);
+   }
+   void setSize(unsigned char num) { set(CAPACITY, num); }
+   void push_back(unsigned char num) {
+      unsigned char siz = size();
+      if ( unsigned(siz + 1) < CAPACITY ) {
+         setSize(siz+1);
+         set(siz, num);
+      }
+   }
+   unsigned char pop_back() {
+      unsigned char siz = size();
+      if ( siz == 0 ) {
+         return 0;
+      }
+      setSize(siz-1);
+      return get(siz-1);
+   }
+   unsigned long storage_ = 0;
+};
+
 struct ChessRow {
    ChessRow() : data_(0) {}
 
