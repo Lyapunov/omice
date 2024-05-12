@@ -1,5 +1,6 @@
 #include "primitives.hpp"
 
+const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
 const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
 
@@ -103,8 +104,8 @@ ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype
             return false;
          }
          if ( !( color_
-                 ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row )
-                 : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 ) ) ) {
+                 ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && getFigure(Pos(from.row+1,from.col)) == ChessFigure::None )
+                 : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && getFigure(Pos(to.row+1,to.col)) == ChessFigure::None ) ) ) {
             return false;
          }
          return true;
@@ -173,14 +174,17 @@ ChessBoard::isCastleValid(const Pos& from, const Pos& to) const {
 }
 
 bool
-ChessBoard::isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
+ChessBoard::isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype) const {
    return stype == ChessFigure::Pawn
-          ? abs(from.col - to.col) == 1 && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 )
+          ? abs(from.col - to.col) == 1 && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 ) && ( ttype != ChessFigure::None || isEnpassant(from, to, stype) )
           : isStepValid(from, to, stype);
 }
 
 bool
 ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
+   if ( !from.valid() || !to.valid() ) {
+      return false;
+   }
    if ( from == to ) {
       return false;
    }
@@ -200,9 +204,11 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
-   return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
-          ? isTakeValid(from, to, stype)
-          : isStepValid(from, to, stype);
+   const bool validMove = (ttype != ChessFigure::None || (stype == ChessFigure::Pawn && to.sub(from).isDiagonal()))
+                          ? isTakeValid(from, to, stype, ttype)
+                          : isStepValid(from, to, stype);
+   const bool noCheckAfterMove = stype == ChessFigure::King || !countWatchers(!color_, kings_[color_], 1, to);
+   return validMove && noCheckAfterMove;
 }
 
 Pos
@@ -235,7 +241,7 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
 }
 
 unsigned char
-ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxval) const {
+ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxval, const Pos& newBlocker) const {
    unsigned char retval = 0;
    if ( !pos.valid() ) {
       return retval;
@@ -243,7 +249,10 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
 
    // Knight
    for ( const auto& kdir: KNIGHTDIRS ) {
-      auto tpos = pos.offset(kdir);
+      auto tpos = pos.add(kdir);
+      if ( newBlocker.valid() && tpos == newBlocker ) {
+         continue;
+      }
       if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor ) {
          retval++;
          if ( retval >= maxval ) {
@@ -254,7 +263,11 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
 
    // Figures that are attacking through lines
    for ( const auto& dir : DIRS ) {
-      if ( getWatcherFromLine(attackerColor, pos, dir).valid() ) {
+      Pos attacker = getWatcherFromLine(attackerColor, pos, dir);
+      if ( attacker.valid() ) {
+         if ( newBlocker.valid() && newBlocker.sub(pos).isInDir(dir) && attacker.sub(newBlocker).isInDir(dir) ) {
+            continue;
+         }
          retval++;
          if ( retval >= maxval ) {
             return retval;
@@ -463,6 +476,124 @@ ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    }
    applyMove(from, to, promoteTo);
    return true;
+}
+
+bool
+ChessBoard::isMobilePiece(const Pos& pos) const {
+   const auto stype = getFigure(pos);
+   const auto scolor = getColor(pos);
+   if ( scolor != color_ ) {
+      return false;
+   }
+   switch ( stype ) {
+      case ChessFigure::Pawn:
+         for ( const auto& dir : PAWNDIRS ) {
+            if ( isMoveValid(pos, color_ ? pos.add(dir) : pos.sub(dir) ) ) {
+               return true;
+            }
+         }
+         return false;
+      case ChessFigure::Knight:
+         for ( const auto& dir : KNIGHTDIRS ) {
+            if ( isMoveValid(pos, pos.add(dir)) ) {
+               return true;
+            }
+         }
+         return false;
+      case ChessFigure::King:
+         for ( unsigned i = 0; i < 2; i++ ) {
+            auto rpos = getCastPos(color_, i);
+            if ( rpos.valid() ) {
+               auto rcolor = getColor(rpos);
+               auto rtype = getFigure(rpos);
+               if ( rcolor == color_ || rtype == ChessFigure::Rook ) {
+                  if ( isMoveValid(pos, rpos) ) {
+                     return true;
+                  }
+               }
+            }
+         }
+         // fallthrough
+      case ChessFigure::Bishop:
+      case ChessFigure::Rook:
+      case ChessFigure::Queen: // if a Bishop, Rook or Queen can move multiple steps in a dir, he can move just one step too!
+         for ( const auto& dir : DIRS ) {
+            Pos target = pos.add(dir);
+            if ( isMoveValid(pos, target) ) {
+               return true;
+            }
+         }
+         return false;
+      default:
+         return false;
+   }
+}
+
+void
+ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const {
+   pawns.clear();
+   pieces.clear();
+   if ( valid() ) {
+      // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
+      if ( checkType(color_) == 2 ) { // double check: the king must move (even if it takes an attacker
+         if ( isMobilePiece(kings_[color_]) ) {
+            push_back(pieces, kings_[color_]);
+         }
+      } else {
+         for ( int row = 0; row < NUMBER_OF_ROWS; row++ ) {
+            for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
+               Pos pos(row, col); 
+               auto pcolor = getColor(pos);
+               auto ptype = getFigure(pos);
+               if ( ptype != ChessFigure::None && pcolor == color_ ) {
+                  if ( isMobilePiece(pos) ) {
+                     if ( ptype == ChessFigure::Pawn ) {
+                        push_back(pawns, pos);
+                     } else {
+                        push_back(pieces, pos);
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+}
+
+void
+ChessBoard::debugPrint(std::ostream& os) const {
+   for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
+      os << " ";
+      debugPrintRowSeparator(os);
+      os << int(row+1);
+      data_[row].debugPrint(os, BOARD_DRAW_COL_SEPARATOR);
+      os <<std::endl;
+   }
+   os << " ";
+   debugPrintRowSeparator(os);
+   os << "  a b c d e f g h" << std::endl;
+   os << std::endl;
+   os << (color_ ? "w" : "b") << " /" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << " " << unsigned(clocks_[FULL_CLOCK]) << "[" << unsigned(clocks_[HALF_CLOCK]) << "]" << std::endl;
+   MiniPosVector pawns;
+   MiniPosVector pieces;
+   listMobilePieces(pawns, pieces);
+   os << std::endl;
+   os << "mp:" << pawns << std::endl;
+   os << "mf:" << pieces << std::endl;
+}
+
+std::ostream& operator<<(std::ostream& os, const MiniPosVector& vec) {
+   os << "{";
+   bool first = true;
+   for ( size_t i = 0; i < vec.size(); i++ ) {
+      if ( !first ) {
+         os << ", ";
+      }
+      os << get(vec, i);
+      first = false;
+   }
+   os << "}";
+   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const ChessBoard& board) {

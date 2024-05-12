@@ -34,7 +34,6 @@ constexpr bool WHITE = true;
 constexpr bool BLACK = false;
 const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
 const std::array<bool, 2> COLORS = {BLACK, WHITE};
-const std::array<int, 2> PAWNDIRS = {-1, +1};
 
 enum class ChessFigure {
    None,
@@ -67,11 +66,12 @@ struct Pos {
    char prow() const { return '1' + row; }
    unsigned char code() const { return (static_cast<unsigned char>(row) << 3) + static_cast<unsigned char>(col); }
    void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
-   Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
+   Pos add(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
    Pos dir() const;
    bool isAxialDir() const { return !row || !col; }
+   bool isDiagonal() const { return row && col; }
    bool null() const { return !row && !col; }
    bool isInDir( const Pos& dir ) const;
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
@@ -128,6 +128,11 @@ struct MiniVector {
    }
    unsigned long storage_ = 0;
 };
+typedef MiniVector<6> MiniPosVector;
+Pos get(const MiniPosVector& vec, size_t i) { return PosFromCode(vec.get(i)); }
+void set(MiniPosVector& vec, size_t i, const Pos& pos) { vec.set(i, pos.code()); }
+void push_back(MiniPosVector& vec, const Pos& pos) { vec.push_back(pos.code()); }
+std::ostream& operator<<(std::ostream& os, const MiniPosVector& vec);
 
 struct ChessRow {
    ChessRow() : data_(0) {}
@@ -222,14 +227,15 @@ struct ChessBoard {
    bool testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const;
 
    bool isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
-   bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
+   bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
    bool isPinned(const Pos& pos) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
-   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255) const;
+   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = INVALID) const;
    bool hasWatcher(const bool color, const Pos& pos) const { return countWatchers(color, pos, 1); }
    bool check(bool color) const { return countWatchers(!color, kings_[color], 1); }
+   unsigned char checkType(bool color) const { return countWatchers(!color, kings_[color], 2); }
 
    unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
@@ -253,16 +259,10 @@ struct ChessBoard {
    void applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
    bool move(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen); 
    bool move(const std::string& desc);
+   bool isMobilePiece(const Pos& pos) const;
+   void listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const;
+   void debugPrint(std::ostream& os) const;
 
-   void debugPrint(std::ostream& os) const {
-      for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
-         debugPrintRowSeparator(os);
-         data_[row].debugPrint(os, BOARD_DRAW_COL_SEPARATOR);
-         os << std::endl;
-      }
-      debugPrintRowSeparator(os);
-      os << (color_ ? "w" : "b") << " /" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << " C:" << unsigned(clocks_[FULL_CLOCK]) << "[" << unsigned(clocks_[HALF_CLOCK]) << "]" << std::endl;
-   }
    std::array<ChessRow, NUMBER_OF_ROWS> data_;
    bool color_; // white = true, blue = false
    std::array<char, NUMBER_OF_CASTS> casts_;
