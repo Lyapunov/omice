@@ -26,6 +26,8 @@ int main(int argc, char* argv[]) {
          std::string numtext;
          bool tok = false;
          std::string toktext;
+         bool fen = false;
+         std::string fentext;
 
          while ( getline(ifs, line) ) {
             if ( num ) {
@@ -52,7 +54,14 @@ int main(int argc, char* argv[]) {
                line = line.substr(0, tpos);
             }
             for ( const auto& elem : line ) {
-               if ( tag ) {
+               if ( fen ) {
+                  if ( elem == '}' ) {
+                     fen = false;
+                     board.initFEN(fentext);
+                  } else {
+                     fentext += elem;
+                  }
+               } else if ( tag ) {
                   if ( elem == ')' ) {
                      tag = false;
                   } else {
@@ -95,6 +104,9 @@ int main(int argc, char* argv[]) {
                      tagtext = "";
                      board.init();
                      variant.clear();
+                  } else if ( elem == '{' ) {
+                     fen = true;
+                     fentext = "";
                   } else if ( elem >= '0' && elem <= '9' ) {
                      num = true;
                      numtext = elem;
@@ -104,6 +116,10 @@ int main(int argc, char* argv[]) {
                   }
                }
             }
+         }
+         if ( !tagtext.empty() && valid ) {
+            boards[tagtext] = board;
+            variants[tagtext] = variant;
          }
          for ( const auto& elem : boards ) {
             std::cout << "=== " << elem.first << std::endl;
