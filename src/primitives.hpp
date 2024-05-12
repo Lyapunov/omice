@@ -65,6 +65,7 @@ struct Pos {
    bool valid() const { return row >= 0 && col >= 0 && row < NUMBER_OF_ROWS && col < NUMBER_OF_COLS; }
    char pcol() const { return 'a' + col; }
    char prow() const { return '1' + row; }
+   unsigned char code() const { return (static_cast<unsigned char>(row) << 3) + static_cast<unsigned char>(col); }
    void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
@@ -77,6 +78,7 @@ struct Pos {
    char row;
    char col;
 };
+Pos PosFromCode(unsigned char code) { return Pos((code >> 3) & 7, code & 7); }
 
 Pos INVALID = Pos(-1, -1);
 Pos NULLPOS = Pos(0, 0);
