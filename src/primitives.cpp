@@ -2,6 +2,8 @@
 
 const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
+const std::array<Pos, 4> ROOKDIRS = {Pos(1,0), Pos(0,1), Pos(-1,0), Pos(0,-1)};
+const std::array<Pos, 4> BISHOPDIRS = {Pos(1,1), Pos(-1,1), Pos(-1,-1), Pos(1,-1)};
 const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
 
 Pos
@@ -147,7 +149,10 @@ ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype
       case ChessFigure::Queen:
          return isStepValid(from, to, ChessFigure::Rook) || isStepValid(from, to, ChessFigure::Bishop);
       case ChessFigure::King:
-         return abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 && !hasWatcher(!color_, to);
+         return abs(from.col - to.col) <= 1
+             && abs(from.row - to.row) <= 1
+             && !hasWatcher(!color_, to)
+             && !getWatcherFromLine(!color_, from, from.sub(to)).valid();
       default:
          return false;
    }
@@ -479,7 +484,7 @@ ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
 }
 
 bool
-ChessBoard::isMobilePiece(const Pos& pos) const {
+ChessBoard::isMobilePiece(const Pos& pos, unsigned char check) const {
    const auto stype = getFigure(pos);
    const auto scolor = getColor(pos);
    if ( scolor != color_ ) {
@@ -501,7 +506,7 @@ ChessBoard::isMobilePiece(const Pos& pos) const {
          }
          return false;
       case ChessFigure::King:
-         for ( unsigned i = 0; i < 2; i++ ) {
+         for ( unsigned i = 0; i < 2; i++ ) { // castles
             auto rpos = getCastPos(color_, i);
             if ( rpos.valid() ) {
                auto rcolor = getColor(rpos);
@@ -513,20 +518,35 @@ ChessBoard::isMobilePiece(const Pos& pos) const {
                }
             }
          }
-         // fallthrough
+         for ( const auto& dir : DIRS ) {
+            if ( isMoveValid(pos, pos.add(dir)) ) {
+               return true;
+            }
+         }
+         return false;
       case ChessFigure::Bishop:
       case ChessFigure::Rook:
-      case ChessFigure::Queen: // if a Bishop, Rook or Queen can move multiple steps in a dir, he can move just one step too!
+      case ChessFigure::Queen:
+         // if no check and Bishop, Rook or Queen can move multiple steps in a dir, it's enough to check just one move
          for ( const auto& dir : DIRS ) {
-            Pos target = pos.add(dir);
-            if ( isMoveValid(pos, target) ) {
+            Pos acc = pos.add(dir);
+            if ( acc.valid() && isMoveValid(pos, acc) ) {
                return true;
+            }
+            if ( check ) {
+               while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
+                  acc.move(dir);
+                  if ( isMoveValid(pos, acc) ) {
+                     return true;
+                  }
+               }
             }
          }
          return false;
       default:
          return false;
    }
+   return false;
 }
 
 void
@@ -535,8 +555,9 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
    pieces.clear();
    if ( valid() ) {
       // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
-      if ( checkType(color_) == 2 ) { // double check: the king must move (even if it takes an attacker
-         if ( isMobilePiece(kings_[color_]) ) {
+      unsigned int cktype = checkType(color_);
+      if ( cktype == 2 ) { // double check: the king must move (even if it takes an attacker
+         if ( isMobilePiece(kings_[color_], cktype) ) {
             push_back(pieces, kings_[color_]);
          }
       } else {
@@ -546,7 +567,7 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
                auto pcolor = getColor(pos);
                auto ptype = getFigure(pos);
                if ( ptype != ChessFigure::None && pcolor == color_ ) {
-                  if ( isMobilePiece(pos) ) {
+                  if ( isMobilePiece(pos, cktype) ) {
                      if ( ptype == ChessFigure::Pawn ) {
                         push_back(pawns, pos);
                      } else {
