@@ -189,16 +189,16 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    if ( stype == ChessFigure::None || scolor != color_ ) {
       return false;
    }
-   const auto tcolor = getColor(to);
-   const auto ttype = getFigure(to);
-   if ( ttype != ChessFigure::None && scolor == tcolor ) {
-      return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
-   }
-   if ( isPinned(from) ) {
+   if ( stype != ChessFigure::King && isPinned(from) ) {
       Pos dir = from.sub(kings_[scolor]).dir();
       if ( !to.sub(from).isInDir(dir) ) {
          return false;
       }
+   }
+   const auto tcolor = getColor(to);
+   const auto ttype = getFigure(to);
+   if ( ttype != ChessFigure::None && scolor == tcolor ) {
+      return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
    return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
