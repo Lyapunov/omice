@@ -92,7 +92,7 @@ ChessBoard::valid() const {
          }
       }
    }
-   return !hasWatcher(color_, kings_[!color_]);
+   return !check(!color_);
 }
 
 bool
@@ -234,28 +234,35 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
    return INVALID;
 }
 
-bool
-ChessBoard::hasWatcher(bool attackerColor, const Pos& pos) const {
+unsigned char
+ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxval) const {
+   unsigned char retval = 0;
    if ( !pos.valid() ) {
-      return false;
+      return retval;
    }
 
    // Knight
    for ( const auto& kdir: KNIGHTDIRS ) {
       auto tpos = pos.offset(kdir);
       if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor ) {
-         return true;
+         retval++;
+         if ( retval >= maxval ) {
+            return retval;
+         }
       }
    }
 
    // Figures that are attacking through lines
    for ( const auto& dir : DIRS ) {
       if ( getWatcherFromLine(attackerColor, pos, dir).valid() ) {
-         return true;
+         retval++;
+         if ( retval >= maxval ) {
+            return retval;
+         }
       }
    }
 
-   return false;
+   return retval;
 }
 
 bool

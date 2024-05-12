@@ -193,7 +193,9 @@ struct ChessBoard {
    bool isMoveValid(const Pos& from, const Pos& to) const;
    bool isPinned(const Pos& pos) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
-   bool hasWatcher(const bool color, const Pos& pos) const;
+   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255) const;
+   bool hasWatcher(const bool color, const Pos& pos) const { return countWatchers(color, pos, 1); }
+   bool check(bool color) const { return countWatchers(!color, kings_[color], 1); }
 
    unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
