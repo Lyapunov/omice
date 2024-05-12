@@ -2,8 +2,6 @@
 
 const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
-const std::array<Pos, 4> ROOKDIRS = {Pos(1,0), Pos(0,1), Pos(-1,0), Pos(0,-1)};
-const std::array<Pos, 4> BISHOPDIRS = {Pos(1,1), Pos(-1,1), Pos(-1,-1), Pos(1,-1)};
 const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
 
 Pos
