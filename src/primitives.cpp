@@ -3,6 +3,30 @@
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
 const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
 
+Pos
+Pos::dir() const {
+   if ( !row && col ) {
+      return Pos(0, col > 0 ? +1: -1);
+   }
+   if ( row && !col ) {
+      return Pos(row > 0 ? +1 : -1, 0);
+   }
+   if ( row == col ) {
+      char common = row > 0 ? +1 : -1;
+      return Pos(common, common);
+   }
+   return NULLPOS;
+}
+
+bool
+Pos::isInDir( const Pos& dir ) const {
+   if ( null() ) {
+      return false;
+   }
+   char z = dir.row ? row / dir.row : col / dir.col;
+   return row == z * dir.row && col == z * dir.col;
+}
+
 bool
 ChessBoard::initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock) {
    for ( auto& elem : data_ ) {
@@ -72,7 +96,7 @@ ChessBoard::valid() const {
 }
 
 bool
-ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const {
+ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
          if ( from.col != to.col ) {
@@ -170,6 +194,12 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
+   if ( isPinned(from) ) {
+      Pos dir = from.sub(kings_[scolor]).dir();
+      if ( !to.sub(from).isInDir(dir) ) {
+         return false;
+      }
+   }
    return (ttype != ChessFigure::None || isEnpassant(from, to, stype))
           ? isTakeValid(from, to, stype)
           : isStepValid(from, to, stype);
@@ -226,6 +256,36 @@ ChessBoard::hasWatcher(bool attackerColor, const Pos& pos) const {
    }
 
    return false;
+}
+
+bool
+ChessBoard::isPinned(const Pos& pos) const {
+   const auto pcolor = getColor(pos);
+   const auto ptype = getFigure(pos);
+   if ( ptype == ChessFigure::None) {
+      return false;
+   }
+   Pos dir = pos.sub(kings_[pcolor]).dir();
+   if ( dir.null() ) {
+      return false;
+   }
+   Pos ipos = getWatcherFromLine(pcolor, kings_[pcolor], dir);
+   if ( !(ipos == pos) ) {
+      return false;
+   }
+   Pos wpos = getWatcherFromLine(!pcolor, pos, dir);
+   if ( !wpos.valid() ) {
+      return false;
+   }
+   const auto wcolor = getColor(wpos);
+   const auto wtype = getFigure(wpos);
+   if ( wcolor == pcolor ) {
+      return false;
+   }
+   if ( wtype != ChessFigure::Queen && wtype != (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) ) {
+      return false;
+   }
+   return true;
 }
 
 static bool

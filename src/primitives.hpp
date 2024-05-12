@@ -67,13 +67,19 @@ struct Pos {
    char prow() const { return '1' + row; }
    void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
+   Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
+   Pos dir() const;
+   bool isAxialDir() const { return !row || !col; }
+   bool null() const { return !row && !col; }
+   bool isInDir( const Pos& dir ) const;
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
    char row;
    char col;
 };
 
-Pos INVALID(-1,-1);
+Pos INVALID = Pos(-1, -1);
+Pos NULLPOS = Pos(0, 0);
 
 std::ostream& operator<<(std::ostream& os, const Pos& pos);
 
@@ -185,6 +191,7 @@ struct ChessBoard {
    bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
+   bool isPinned(const Pos& pos) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
    bool hasWatcher(const bool color, const Pos& pos) const;
 
