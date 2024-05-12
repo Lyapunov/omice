@@ -43,6 +43,7 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
    enpassant_ = enpassant.size() >= 1 ? enpassant[0] : '-';
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
+   kings_ = { find(BLACK, ChessFigure::King), find(WHITE, ChessFigure::King) };
    return true;
 }
 
@@ -57,7 +58,7 @@ ChessBoard::initFEN(const std::string& str) {
 bool
 ChessBoard::valid() const {
    for ( const auto& color : COLORS ) {
-      if ( count(color, ChessFigure::King) != 1 || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
+      if ( count(color, ChessFigure::King) != 1 || getFigure(kings_[color]) != ChessFigure::King || getColor(kings_[color]) != color || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
          return false;
       }
       for ( unsigned i = 0; i < CASTS_SIDES; i++ ) {
@@ -67,7 +68,7 @@ ChessBoard::valid() const {
          }
       }
    }
-   return !hasWatcher(color_, find(!color_, ChessFigure::King));
+   return !hasWatcher(color_, kings_[!color_]);
 }
 
 bool
@@ -385,7 +386,7 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
       clocks_[HALF_CLOCK]++;
    }
 
-   enpassant_ = isFastPawn(from, to, stype) ? static_cast<char>('a' + to.col) : '-';
+   enpassant_ = isFastPawn(from, to, stype) ? to.pcol() : '-';
 }
 
 bool

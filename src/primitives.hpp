@@ -11,6 +11,7 @@ constexpr int NUMBER_OF_COLS = 8;
 constexpr char NUMBER_OF_COLS_CHAR = 8;
 constexpr unsigned NUMBER_OF_CASTS = 4;
 constexpr unsigned NUMBER_OF_CLOCKS = 2;
+constexpr unsigned NUMBER_OF_KINGS = 2;
 constexpr int FIRST_ROW = 0;
 constexpr int LAST_ROW = 7;
 constexpr int FIRST_PAWN_ROW = 1;
@@ -56,18 +57,20 @@ ChessFigure toFigure( char chr ) {
 }
 
 struct Pos {
-   Pos(int prow = 0, int pcol = 0) : row(prow), col(pcol) {}
+   Pos(char prow = 0, char pcol = 0) : row(prow), col(pcol) {}
    bool equals( const Pos& rhs ) const { return row == rhs.row && col == rhs.col; }
    void prevRow() { row--; col = 0; }
    void nextCol(int num = 1) { col+= num; }
    void move(const Pos& dir) { row += dir.row; col += dir.col; }
    bool valid() const { return row >= 0 && col >= 0 && row < NUMBER_OF_ROWS && col < NUMBER_OF_COLS; }
-   void debugPrint(std::ostream& os) const { os << "{" << row << ", " << col << "}"; }
+   char pcol() const { return 'a' + col; }
+   char prow() const { return '1' + row; }
+   void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
    Pos offset(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
-   int row;
-   int col;
+   char row;
+   char col;
 };
 
 Pos INVALID(-1,-1);
@@ -132,13 +135,8 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
    return lhs.equals(rhs);
 }
 
-bool hasEnpassantColRank(char enpassant, const Pos& to, bool color) {
-   if ( enpassant == '-' || to.row != (color ? LAST_EMP_ROW : FIRST_EMP_ROW ) ) {
-      return false;
-   }
-   int ecol = int(enpassant - 'a');
-   assert(ecol > 0 && ecol < NUMBER_OF_COLS);
-   return to.col == ecol;
+bool isEnpassantTarget(const Pos& to, bool color, char enpassant) {
+   return to.row == (color ? LAST_EMP_ROW : FIRST_EMP_ROW ) && to.pcol() == enpassant;
 }
 
 struct ChessBoard {
@@ -168,9 +166,12 @@ struct ChessBoard {
    void set(const Pos& pos, bool color, ChessFigure fig) {
       assert( pos.row >= 0 && pos.row < NUMBER_OF_ROWS );
       data_[pos.row].set(pos.col, color, fig);
+      if ( fig == ChessFigure::King ) {
+         kings_[color] = pos;
+      }
    }
    bool isEnpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
-      return stype == ChessFigure::Pawn && hasEnpassantColRank(enpassant_, to, color_);
+      return stype == ChessFigure::Pawn && isEnpassantTarget(to, color_, enpassant_);
    }
    bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && to.row == ( color_ ? LAST_ROW : FIRST_ROW );
@@ -224,6 +225,7 @@ struct ChessBoard {
    std::array<char, NUMBER_OF_CASTS> casts_;
    char enpassant_;
    std::array<unsigned char, NUMBER_OF_CLOCKS> clocks_;
+   std::array<Pos, NUMBER_OF_KINGS> kings_;
 };
 
 std::ostream& operator<<(std::ostream& os, const ChessBoard& board);
