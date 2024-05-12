@@ -104,6 +104,7 @@ struct MiniVector {
    static constexpr unsigned long BITMASK = (1 << BITS)-1;
    unsigned char size() const {return get(CAPACITY);}
    unsigned char get(size_t i) const { return (storage_ >> (BITS * i)) & BITMASK; }
+   void clear() { storage_ = 0; }
    void clear(size_t i) { storage_ &= ~(BITMASK << (BITS*i)); }
    void set(size_t i, unsigned char num) {
       clear(i);
