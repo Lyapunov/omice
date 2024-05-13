@@ -581,6 +581,9 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
 
 void
 ChessBoard::debugPrint(std::ostream& os) const {
+   if ( !valid() ) {
+      os << "!!!INVALID!!!" << std::endl;
+   }
    for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
       os << " ";
       debugPrintRowSeparator(os);
