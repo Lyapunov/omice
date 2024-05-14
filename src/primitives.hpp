@@ -180,10 +180,6 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
    return lhs.equals(rhs);
 }
 
-bool isEnpassantTarget(const Pos& to, bool color, char enpassant) {
-   return to.row == (color ? LAST_EMP_ROW : FIRST_EMP_ROW ) && to.pcol() == enpassant;
-}
-
 struct ChessBoard {
    ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-'), clocks_({0,0}) {}
 
@@ -215,8 +211,8 @@ struct ChessBoard {
          kings_[color] = pos;
       }
    }
-   bool isEnpassant(const Pos& from, const Pos& to, const ChessFigure& stype) const {
-      return stype == ChessFigure::Pawn && isEnpassantTarget(to, color_, enpassant_);
+   bool isEnpassantTarget(const Pos& to) const {
+      return to.row == (color_ ? LAST_EMP_ROW : FIRST_EMP_ROW ) && to.pcol() == enpassant_;
    }
    bool isPromotion(const Pos& from, const Pos& to, const ChessFigure& stype) const {
       return stype == ChessFigure::Pawn && to.row == ( color_ ? LAST_ROW : FIRST_ROW );
@@ -226,8 +222,7 @@ struct ChessBoard {
    }
    bool testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const;
 
-   bool isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype ) const;
-   bool isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype ) const;
+   bool isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to) const;
    bool isPinned(const Pos& pos) const;

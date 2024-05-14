@@ -1,5 +1,7 @@
 #include "primitives.hpp"
 
+#include <chrono>
+
 const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
 const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
@@ -97,18 +99,20 @@ ChessBoard::valid() const {
 }
 
 bool
-ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype) const {
+ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
-         if ( from.col != to.col ) {
-            return false;
+         if ( to.sub(from).isDiagonal() ) {
+            return abs(from.col - to.col) == 1
+               && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 )
+               && ( ttype != ChessFigure::None || isEnpassantTarget(to) );
+         } else {
+            return from.col == to.col
+                && ttype == ChessFigure::None
+                && ( color_
+                ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && getFigure(Pos(from.row+1,from.col)) == ChessFigure::None )
+                : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && getFigure(Pos(to.row+1,to.col)) == ChessFigure::None ) );
          }
-         if ( !( color_
-                 ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && getFigure(Pos(from.row+1,from.col)) == ChessFigure::None )
-                 : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && getFigure(Pos(to.row+1,to.col)) == ChessFigure::None ) ) ) {
-            return false;
-         }
-         return true;
       case ChessFigure::Knight:
          return (abs(from.row - to.row) == 1 && abs(from.col - to.col) == 2)
              || (abs(from.row - to.row) == 2 && abs(from.col - to.col) == 1);
@@ -145,7 +149,7 @@ ChessBoard::isStepValid(const Pos& from, const Pos& to, const ChessFigure& stype
          }
          return true;
       case ChessFigure::Queen:
-         return isStepValid(from, to, ChessFigure::Rook) || isStepValid(from, to, ChessFigure::Bishop);
+         return isMoveValidInternal(from, to, ChessFigure::Rook, ttype) || isMoveValidInternal(from, to, ChessFigure::Bishop, ttype);
       case ChessFigure::King:
          return abs(from.col - to.col) <= 1
              && abs(from.row - to.row) <= 1
@@ -177,18 +181,8 @@ ChessBoard::isCastleValid(const Pos& from, const Pos& to) const {
 }
 
 bool
-ChessBoard::isTakeValid(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype) const {
-   return stype == ChessFigure::Pawn
-          ? abs(from.col - to.col) == 1 && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 ) && ( ttype != ChessFigure::None || isEnpassant(from, to, stype) )
-          : isStepValid(from, to, stype);
-}
-
-bool
 ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
-   if ( !from.valid() || !to.valid() ) {
-      return false;
-   }
-   if ( from == to ) {
+   if ( !from.valid() || !to.valid() || from == to ) {
       return false;
    }
    const auto scolor = getColor(from);
@@ -196,20 +190,15 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    if ( stype == ChessFigure::None || scolor != color_ ) {
       return false;
    }
-   if ( stype != ChessFigure::King && isPinned(from) ) {
-      Pos dir = from.sub(kings_[scolor]).dir();
-      if ( !to.sub(from).isInDir(dir) ) {
-         return false;
-      }
+   if ( stype != ChessFigure::King && isPinned(from) && !to.sub(from).isInDir(from.sub(kings_[scolor]).dir()) ) {
+      return false;
    }
    const auto tcolor = getColor(to);
    const auto ttype = getFigure(to);
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
-   const bool validMove = (ttype != ChessFigure::None || (stype == ChessFigure::Pawn && to.sub(from).isDiagonal()))
-                          ? isTakeValid(from, to, stype, ttype)
-                          : isStepValid(from, to, stype);
+   const bool validMove = isMoveValidInternal(from, to, stype, ttype);
    const bool noCheckAfterMove = stype == ChessFigure::King || !countWatchers(!color_, kings_[color_], 1, to);
    return validMove && noCheckAfterMove;
 }
@@ -453,7 +442,7 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
       set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
    }
 
-   if ( isEnpassant(from, to, stype ) ) {
+   if ( isEnpassantTarget(to) ) {
       set(to.towardCenter(), false, ChessFigure::None);
    }
 
@@ -598,7 +587,11 @@ ChessBoard::debugPrint(std::ostream& os) const {
    os << (color_ ? "w" : "b") << " /" << casts_[0] << casts_[1] << casts_[2] << casts_[3] << "/ " << enpassant_ << " " << unsigned(clocks_[FULL_CLOCK]) << "[" << unsigned(clocks_[HALF_CLOCK]) << "]" << std::endl;
    MiniPosVector pawns;
    MiniPosVector pieces;
+   std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
    listMobilePieces(pawns, pieces);
+   std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+   std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+   std::cout << "It took me " << (time_span.count()*1000.0*1000.0) << " us";
    os << std::endl;
    os << "mp:" << pawns << std::endl;
    os << "mf:" << pieces << std::endl;
