@@ -254,7 +254,7 @@ struct ChessBoard {
    void applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
    bool move(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen); 
    bool move(const std::string& desc);
-   bool isMobilePiece(const Pos& pos, unsigned char cktype) const;
+   bool isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char cktype) const;
    void listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const;
    void debugPrint(std::ostream& os) const;
 

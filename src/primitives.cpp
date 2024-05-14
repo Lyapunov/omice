@@ -470,12 +470,7 @@ ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
 }
 
 bool
-ChessBoard::isMobilePiece(const Pos& pos, unsigned char check) const {
-   const auto stype = getFigure(pos);
-   const auto scolor = getColor(pos);
-   if ( scolor != color_ ) {
-      return false;
-   }
+ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char check) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
          for ( const auto& dir : PAWNDIRS ) {
@@ -543,22 +538,18 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
       // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
       unsigned int cktype = checkType(color_);
       if ( cktype == 2 ) { // double check: the king must move (even if it takes an attacker
-         if ( isMobilePiece(kings_[color_], cktype) ) {
+         if ( isMobilePiece(kings_[color_], ChessFigure::King, cktype) ) {
             push_back(pieces, kings_[color_]);
          }
       } else {
-         for ( int row = 0; row < NUMBER_OF_ROWS; row++ ) {
-            for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
-               Pos pos(row, col); 
+         Pos pos;
+         for ( pos.row = 0; pos.row < NUMBER_OF_ROWS; pos.row++ ) {
+            for ( pos.col = 0; pos.col < NUMBER_OF_COLS; pos.col++ ) {
                auto pcolor = getColor(pos);
                auto ptype = getFigure(pos);
                if ( ptype != ChessFigure::None && pcolor == color_ ) {
-                  if ( isMobilePiece(pos, cktype) ) {
-                     if ( ptype == ChessFigure::Pawn ) {
-                        push_back(pawns, pos);
-                     } else {
-                        push_back(pieces, pos);
-                     }
+                  if ( isMobilePiece(pos, ptype, cktype) ) {
+                     push_back(ptype == ChessFigure::Pawn ? pawns : pieces, pos);
                   }
                }
             }
