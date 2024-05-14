@@ -198,9 +198,8 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
    if ( ttype != ChessFigure::None && scolor == tcolor ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
-   const bool validMove = isMoveValidInternal(from, to, stype, ttype);
-   const bool noCheckAfterMove = stype == ChessFigure::King || !countWatchers(!color_, kings_[color_], 1, to);
-   return validMove && noCheckAfterMove;
+   return isMoveValidInternal(from, to, stype, ttype)
+       && (stype == ChessFigure::King || !countWatchers(!color_, kings_[color_], 1, to));
 }
 
 Pos
