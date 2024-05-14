@@ -271,26 +271,21 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
 
 bool
 ChessBoard::isPinned(const Pos& pos) const {
-   const auto pcolor = getColor(pos);
-   const auto ptype = getFigure(pos);
-   if ( ptype == ChessFigure::None) {
-      return false;
-   }
-   Pos dir = pos.sub(kings_[pcolor]).dir();
+   Pos dir = pos.sub(kings_[color_]).dir();
    if ( dir.null() ) {
       return false;
    }
-   Pos ipos = getWatcherFromLine(pcolor, kings_[pcolor], dir);
+   Pos ipos = getWatcherFromLine(color_, kings_[color_], dir);
    if ( !(ipos == pos) ) {
       return false;
    }
-   Pos wpos = getWatcherFromLine(!pcolor, pos, dir);
+   Pos wpos = getWatcherFromLine(!color_, pos, dir);
    if ( !wpos.valid() ) {
       return false;
    }
    const auto wcolor = getColor(wpos);
    const auto wtype = getFigure(wpos);
-   if ( wcolor == pcolor ) {
+   if ( wcolor == color_ ) {
       return false;
    }
    if ( wtype != ChessFigure::Queen && wtype != (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) ) {
