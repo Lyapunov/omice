@@ -14,9 +14,8 @@ Pos::dir() const {
    if ( row && !col ) {
       return Pos(row > 0 ? +1 : -1, 0);
    }
-   if ( row == col ) {
-      char common = row > 0 ? +1 : -1;
-      return Pos(common, common);
+   if ( abs(row) == abs(col) ) {
+      return Pos(row > 0 ? +1 : -1, col > 0 ? +1 : -1);
    }
    return NULLPOS;
 }
