@@ -66,14 +66,18 @@ struct Pos {
    char prow() const { return '1' + row; }
    unsigned char code() const { return (static_cast<unsigned char>(row) << 3) + static_cast<unsigned char>(col); }
    void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
+   void vecPrint(std::ostream& os) const { os << "(" << int(col) << ", " << int(row) << ")"; }
    Pos add(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
+   Pos mul(char n) const { return Pos(row*n, col*n); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
    Pos dir() const;
+   char dot(const Pos& rhs) const { return rhs.row * row + rhs.col * col; }
    bool isAxialDir() const { return !row || !col; }
    bool isDiagonal() const { return row && col; }
    bool null() const { return !row && !col; }
    bool isInDir( const Pos& dir ) const;
+   bool opp(const Pos& rhs) const { return row == -rhs.row && col == -rhs.col; }
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
    char row;
    char col;
@@ -228,9 +232,10 @@ struct ChessBoard {
    bool isPinned(const Pos& pos) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
    unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = INVALID) const;
+   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval, const Pos& newBlocker, Pos& attackerPos) const;
    bool hasWatcher(const bool color, const Pos& pos) const { return countWatchers(color, pos, 1); }
    bool check(bool color) const { return countWatchers(!color, kings_[color], 1); }
-   unsigned char checkType(bool color) const { return countWatchers(!color, kings_[color], 2); }
+   unsigned char getChecker(bool color, Pos& pos) const { return countWatchers(!color, kings_[color], 2, INVALID, pos); }
 
    unsigned count(const bool color, const ChessFigure& fig) const {
       unsigned retval = 0;
@@ -254,7 +259,7 @@ struct ChessBoard {
    void applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
    bool move(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen); 
    bool move(const std::string& desc);
-   bool isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char cktype) const;
+   bool isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char cktype, const Pos& checkerj) const;
    void listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const;
    void debugPrint(std::ostream& os) const;
 

@@ -26,7 +26,7 @@ Pos::isInDir( const Pos& dir ) const {
       return false;
    }
    char z = dir.row ? row / dir.row : col / dir.col;
-   return row == z * dir.row && col == z * dir.col;
+   return row == z * dir.row && col == z * dir.col && z > 0;
 }
 
 bool
@@ -208,12 +208,12 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
 
    // Pawn
    if ( dir.col && dir.row == (attackerColor ? -1 : +1) && getFigure(acc) == ChessFigure::Pawn && getColor(acc) == attackerColor ) {
-      return pos;
+      return acc;
    }
 
    // King
    if ( getFigure(acc) == ChessFigure::King && getColor(acc) == attackerColor ) {
-      return pos;
+      return acc;
    }
 
    // Bishop, Rook, Queen
@@ -224,14 +224,14 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
    if ( acc.valid() && getColor(acc) == attackerColor ) {
       auto atype = getFigure(acc);
       if ( atype == ChessFigure::Queen || atype == minorType ) {
-         return pos;
+         return acc;
       }
    }
    return INVALID;
 }
 
 unsigned char
-ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxval, const Pos& newBlocker) const {
+ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxval, const Pos& newBlocker, Pos& attackerPos) const {
    unsigned char retval = 0;
    if ( !pos.valid() ) {
       return retval;
@@ -244,6 +244,7 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
          continue;
       }
       if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor ) {
+         attackerPos = tpos;
          retval++;
          if ( retval >= maxval ) {
             return retval;
@@ -255,9 +256,10 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    for ( const auto& dir : DIRS ) {
       Pos attacker = getWatcherFromLine(attackerColor, pos, dir);
       if ( attacker.valid() ) {
-         if ( newBlocker.valid() && newBlocker.sub(pos).isInDir(dir) && attacker.sub(newBlocker).isInDir(dir) ) {
+         if ( newBlocker.valid() && ( newBlocker == attacker || ( newBlocker.sub(pos).isInDir(dir) && attacker.sub(newBlocker).isInDir(dir) ) ) ) {
             continue;
          }
+         attackerPos = attacker;
          retval++;
          if ( retval >= maxval ) {
             return retval;
@@ -266,6 +268,12 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    }
 
    return retval;
+}
+
+unsigned char
+ChessBoard::countWatchers(const bool color, const Pos& pos, unsigned char maxval, const Pos& newBlocker) const {
+   Pos attacker = INVALID;
+   return countWatchers(color, pos, maxval, newBlocker, attacker);
 }
 
 bool
@@ -463,8 +471,27 @@ ChessBoard::move(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    return true;
 }
 
+Pos
+intersect(const Pos& pos, const Pos& dir, const Pos& king, const Pos& checker) {
+   auto cdir = checker.sub(king).dir();
+   auto r = checker.sub(pos);
+
+   char det = dir.row * cdir.col - dir.col * cdir.row;
+   if ( det == 0 ) {
+      return checker;  // if the defender is moving along the line of the check, blocking is not possible
+   }
+
+   char biga = (r.col * -cdir.row + r.row * cdir.col);
+   if ( biga % det != 0 ) {
+      return checker; // not a square on the checkerboard
+   }
+   char aval = biga / det;
+
+   return pos.add(dir.mul(aval));
+}
+
 bool
-ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char check) const {
+ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char check, const Pos& checker) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
          for ( const auto& dir : PAWNDIRS ) {
@@ -481,14 +508,16 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          }
          return false;
       case ChessFigure::King:
-         for ( unsigned i = 0; i < 2; i++ ) { // castles
-            auto rpos = getCastPos(color_, i);
-            if ( rpos.valid() ) {
-               auto rcolor = getColor(rpos);
-               auto rtype = getFigure(rpos);
-               if ( rcolor == color_ || rtype == ChessFigure::Rook ) {
-                  if ( isMoveValid(pos, rpos) ) {
-                     return true;
+         if ( !check ) {
+            for ( unsigned i = 0; i < 2; i++ ) { // castles
+               auto rpos = getCastPos(color_, i);
+               if ( rpos.valid() ) {
+                  auto rcolor = getColor(rpos);
+                  auto rtype = getFigure(rpos);
+                  if ( rcolor == color_ || rtype == ChessFigure::Rook ) {
+                     if ( isMoveValid(pos, rpos) ) {
+                        return true;
+                     }
                   }
                }
             }
@@ -504,17 +533,9 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
       case ChessFigure::Queen:
          // if no check and Bishop, Rook or Queen can move multiple steps in a dir, it's enough to check just one move
          for ( const auto& dir : DIRS ) {
-            Pos acc = pos.add(dir);
-            if ( acc.valid() && isMoveValid(pos, acc) ) {
+            Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
+            if ( test.valid() && isMoveValid(pos, test) ) {
                return true;
-            }
-            if ( check ) {
-               while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
-                  acc.move(dir);
-                  if ( isMoveValid(pos, acc) ) {
-                     return true;
-                  }
-               }
             }
          }
          return false;
@@ -530,9 +551,10 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
    pieces.clear();
    if ( valid() ) {
       // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
-      unsigned int cktype = checkType(color_);
+      Pos checker;
+      unsigned int cktype = getChecker(color_, checker);
       if ( cktype == 2 ) { // double check: the king must move (even if it takes an attacker
-         if ( isMobilePiece(kings_[color_], ChessFigure::King, cktype) ) {
+         if ( isMobilePiece(kings_[color_], ChessFigure::King, cktype, checker) ) {
             push_back(pieces, kings_[color_]);
          }
       } else {
@@ -541,7 +563,7 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
             for ( pos.col = 0; pos.col < NUMBER_OF_COLS; pos.col++ ) {
                auto ptype = getFigure(pos);
                if ( ptype != ChessFigure::None && getColor(pos) == color_ ) {
-                  if ( isMobilePiece(pos, ptype, cktype) ) {
+                  if ( isMobilePiece(pos, ptype, cktype, checker) ) {
                      push_back(ptype == ChessFigure::Pawn ? pawns : pieces, pos);
                   }
                }
