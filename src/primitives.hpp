@@ -81,6 +81,15 @@ struct Pos {
    bool opp(const Pos& rhs) const { return row == -rhs.row && col == -rhs.col; }
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
    bool isPawnDir(bool attackerColor) const { return col && row == (attackerColor ? -1 : +1); }
+   void knightShiftRot() {
+      bool half = !row || !col;
+      col = ( col - row );
+      row = (col + row + row );
+      if ( half ) {
+         col /= 2;
+         row /= 2;
+      }
+   }
    char row;
    char col;
 };

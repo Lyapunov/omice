@@ -3,9 +3,8 @@
 #include <chrono>
 #include <valgrind/callgrind.h>
 
-const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
-const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
-const std::array<Pos, 8> DIRS = {Pos(1,0), Pos(1,1), Pos(0,1), Pos(-1,1), Pos(-1,0), Pos(-1,-1), Pos(0,-1), Pos(1,-1)};
+const Pos KNIGHT_FIRST_DIR(-2,+1);
+const Pos KNIGHT_FIRST_SHIFT(+1,+1);
 
 Pos
 Pos::dir() const {
@@ -232,26 +231,35 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    }
 
    // Knight
-   for ( const auto& kdir: KNIGHTDIRS ) {
-      auto tpos = pos.add(kdir);
-      if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor && !( newBlocker.valid() && tpos == newBlocker ) ) {
-         attackerPos = tpos;
+   Pos kpos = pos.add(KNIGHT_FIRST_DIR);
+   Pos kshift = KNIGHT_FIRST_SHIFT;
+   for ( size_t i = 0; i < 8; i ++ ) {
+      if ( getFigure(kpos) == ChessFigure::Knight && getColor(kpos) == attackerColor && !( newBlocker.valid() && kpos == newBlocker ) ) {
+         attackerPos = kpos;
          if ( ++retval >= maxval ) {
             return retval;
          }
       }
+      kpos.move(kshift);
+      kshift.knightShiftRot();
    }
 
    // Figures that are attacking through lines
-   for ( const auto& dir : DIRS ) {
-      Pos attacker = getWatcherFromLine(attackerColor, pos, dir);
-      if ( attacker.valid() ) {
-         if ( newBlocker.valid() && ( newBlocker == attacker || ( newBlocker.sub(pos).isInDir(dir) && attacker.sub(newBlocker).isInDir(dir) ) ) ) {
+   Pos dir;
+   for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
+      for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
+         if ( !dir.row && !dir.col ) {
             continue;
          }
-         attackerPos = attacker;
-         if ( ++retval >= maxval ) {
-            return retval;
+         Pos attacker = getWatcherFromLine(attackerColor, pos, dir);
+         if ( attacker.valid() ) {
+            if ( newBlocker.valid() && ( newBlocker == attacker || ( newBlocker.sub(pos).isInDir(dir) && attacker.sub(newBlocker).isInDir(dir) ) ) ) {
+               continue;
+            }
+            attackerPos = attacker;
+            if ( ++retval >= maxval ) {
+               return retval;
+            }
          }
       }
    }
@@ -478,16 +486,27 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
    bool pinned = stype != ChessFigure::King && isPinned(pos);
    switch ( stype ) {
       case ChessFigure::Pawn:
-         for ( const auto& dir : PAWNDIRS ) {
-            if ( isMoveValid(pos, color_ ? pos.add(dir) : pos.sub(dir), pinned) ) {
-               return true;
+         {
+            Pos dir;
+            for ( dir.row = +1; dir.row <= +2; dir.row++ ) {
+               for ( dir.col = -2+dir.row; dir.col <= 2- dir.row; dir.col++ ) {
+                  if ( isMoveValid(pos, color_ ? pos.add(dir) : pos.sub(dir), pinned) ) {
+                     return true;
+                  }
+               }
             }
          }
          return false;
       case ChessFigure::Knight:
-         for ( const auto& dir : KNIGHTDIRS ) {
-            if ( isMoveValid(pos, pos.add(dir), pinned) ) {
-               return true;
+         {
+            Pos kpos = pos.add(KNIGHT_FIRST_DIR);
+            Pos kshift = KNIGHT_FIRST_SHIFT;
+            for ( size_t i = 0; i < 8; i ++ ) {
+               if ( isMoveValid(pos, kpos, pinned) ) {
+                  return true;
+               }
+               kpos.move(kshift);
+               kshift.knightShiftRot();
             }
          }
          return false;
@@ -506,9 +525,17 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
                }
             }
          }
-         for ( const auto& dir : DIRS ) {
-            if ( isMoveValid(pos, pos.add(dir), pinned) ) {
-               return true;
+         {
+            Pos dir;
+            for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
+               for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
+                  if ( !dir.row && !dir.col ) {
+                     continue;
+                  }
+                  if ( isMoveValid(pos, pos.add(dir), pinned) ) {
+                     return true;
+                  }
+               }
             }
          }
          return false;
@@ -516,10 +543,19 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
       case ChessFigure::Rook:
       case ChessFigure::Queen:
          // if no check and Bishop, Rook or Queen can move multiple steps in a dir, it's enough to check just one move
-         for ( const auto& dir : DIRS ) {
-            Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
-            if ( test.valid() && isMoveValid(pos, test, pinned) ) {
-               return true;
+         {
+            Pos dir;
+            for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
+               for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
+                  if ( !dir.row && !dir.col ) {
+                     continue;
+                  }
+
+                  Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
+                  if ( test.valid() && isMoveValid(pos, test, pinned) ) {
+                     return true;
+                  }
+               }
             }
          }
          return false;
