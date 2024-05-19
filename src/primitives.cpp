@@ -53,10 +53,10 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
       return false;
    }
    color_ = ( white.size() >= 1 && white[0] == 'w' );
-   casts_ = {'-', '-', '-', '-'};
+   casts_ = {CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID};
    std::array<unsigned, 2> cpos = {0, 0};
    for ( const auto& elem : casts ) {
-      if ( elem == '-' ) {
+      if ( elem == CHAR_INVALID ) {
          continue;
       }
       bool color = isupper(elem);
@@ -66,7 +66,7 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
       casts_[(color ? 0 : CASTS_SIDES) + cpos[color]] = elem;
       cpos[color]++;
    }
-   enpassant_ = enpassant.size() >= 1 ? enpassant[0] : '-';
+   enpassant_ = enpassant.size() >= 1 ? enpassant[0] : CHAR_INVALID;
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
    kings_ = { find(BLACK, ChessFigure::King), find(WHITE, ChessFigure::King) };
@@ -411,14 +411,14 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
 
    unsigned sofs = (scolor ? 0 : CASTS_SIDES);
    if ( stype == ChessFigure::King ) {
-      casts_[sofs] = '-';
-      casts_[sofs+1] = '-';
+      casts_[sofs] = CHAR_INVALID;
+      casts_[sofs+1] = CHAR_INVALID;
    } else if ( stype == ChessFigure::Rook ) {
       if ( getCastPos(sofs) == from ) {
-         casts_[sofs] = '-';
+         casts_[sofs] = CHAR_INVALID;
       }
       if ( getCastPos(sofs+1) == from ) {
-         casts_[sofs+1] = '-';
+         casts_[sofs+1] = CHAR_INVALID;
       }
    }
 
@@ -450,7 +450,7 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
       clocks_[HALF_CLOCK]++;
    }
 
-   enpassant_ = isFastPawn(from, to, stype) ? to.pcol() : '-';
+   enpassant_ = isFastPawn(from, to, stype) ? to.pcol() : CHAR_INVALID;
 }
 
 bool

@@ -30,6 +30,7 @@ constexpr unsigned FULL_CLOCK = 1;
 constexpr char BOARD_DRAW_COL_SEPARATOR = '|';
 constexpr char BOARD_DRAW_ROW_SEPARATOR = '-';
 constexpr char BOARD_DRAW_CORNER= '*';
+constexpr char CHAR_INVALID='-';
 constexpr bool WHITE = true;
 constexpr bool BLACK = false;
 const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
@@ -177,7 +178,7 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
 }
 
 struct ChessBoard {
-   ChessBoard() : data_(), color_(true), casts_({'-', '-', '-', '-'}), enpassant_('-'), clocks_({0,0}) {}
+   ChessBoard() : data_(), color_(true), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}) {}
 
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
    bool initFEN(const std::string& str);
@@ -186,7 +187,7 @@ struct ChessBoard {
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
    }
    Pos getCastPos(unsigned i) const {
-      return casts_[i] == '-' ? INVALID : Pos(i < CASTS_SIDES ? FIRST_ROW : LAST_ROW, toupper(casts_[i]) - 'A');
+      return casts_[i] == CHAR_INVALID ? INVALID : Pos(i < CASTS_SIDES ? FIRST_ROW : LAST_ROW, toupper(casts_[i]) - 'A');
    }
    Pos getCastPos(bool color, unsigned i) const {
       return getCastPos(i + (color ? 0 : CASTS_SIDES));
