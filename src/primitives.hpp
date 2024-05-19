@@ -80,6 +80,7 @@ struct Pos {
    bool isInDir( const Pos& dir ) const;
    bool opp(const Pos& rhs) const { return row == -rhs.row && col == -rhs.col; }
    ChessFigure minorType() const { return row && col ? ChessFigure::Bishop : ChessFigure::Rook; }
+   bool isPawnDir(bool attackerColor) const { return col && row == (attackerColor ? -1 : +1); }
    char row;
    char col;
 };

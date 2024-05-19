@@ -1,6 +1,7 @@
 #include "primitives.hpp"
 
 #include <chrono>
+#include <valgrind/callgrind.h>
 
 const std::array<Pos, 4> PAWNDIRS = {Pos(1,-1), Pos(1,+1), Pos(1,0), Pos(2,0)};
 const std::array<Pos, 8> KNIGHTDIRS = {Pos(1,2), Pos(-1,2), Pos(1,-2), Pos(-1,-2), Pos(2,1), Pos(-2,1), Pos(2,-1), Pos(-2,-1)};
@@ -202,14 +203,11 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned) const {
 Pos
 ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
    Pos acc = pos.add(dir);
+   const auto acolor = getColor(acc);
+   const auto atype = getFigure(acc);
 
-   // Pawn
-   if ( dir.col && dir.row == (attackerColor ? -1 : +1) && getFigure(acc) == ChessFigure::Pawn && getColor(acc) == attackerColor ) {
-      return acc;
-   }
-
-   // King
-   if ( getFigure(acc) == ChessFigure::King && getColor(acc) == attackerColor ) {
+   // Pawn or King
+   if ( acolor == attackerColor && ( ( atype == ChessFigure::Pawn && dir.isPawnDir(attackerColor) ) || atype == ChessFigure::King ) ) {
       return acc;
    }
 
@@ -217,10 +215,9 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
    while ( acc.valid() && isEmpty(acc) ) {
       acc.move(dir);
    }
-   auto minorType = dir.minorType();
    if ( acc.valid() && getColor(acc) == attackerColor ) {
       auto atype = getFigure(acc);
-      if ( atype == ChessFigure::Queen || atype == minorType ) {
+      if ( atype == ChessFigure::Queen || atype == dir.minorType() ) {
          return acc;
       }
    }
@@ -237,13 +234,9 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    // Knight
    for ( const auto& kdir: KNIGHTDIRS ) {
       auto tpos = pos.add(kdir);
-      if ( newBlocker.valid() && tpos == newBlocker ) {
-         continue;
-      }
-      if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor ) {
+      if ( getFigure(tpos) == ChessFigure::Knight && getColor(tpos) == attackerColor && !( newBlocker.valid() && tpos == newBlocker ) ) {
          attackerPos = tpos;
-         retval++;
-         if ( retval >= maxval ) {
+         if ( ++retval >= maxval ) {
             return retval;
          }
       }
@@ -257,8 +250,7 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
             continue;
          }
          attackerPos = attacker;
-         retval++;
-         if ( retval >= maxval ) {
+         if ( ++retval >= maxval ) {
             return retval;
          }
       }
@@ -585,7 +577,9 @@ ChessBoard::debugPrint(std::ostream& os) const {
    MiniPosVector pawns;
    MiniPosVector pieces;
    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+   CALLGRIND_START_INSTRUMENTATION;
    listMobilePieces(pawns, pieces);
+   CALLGRIND_STOP_INSTRUMENTATION;
    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
    std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
    std::cout << "It took me " << (time_span.count()*1000.0*1000.0) << " us";
