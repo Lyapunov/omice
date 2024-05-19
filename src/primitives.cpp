@@ -289,13 +289,7 @@ ChessBoard::isPinned(const Pos& pos) const {
    }
    const auto wcolor = getColor(wpos);
    const auto wtype = getFigure(wpos);
-   if ( wcolor == color_ ) {
-      return false;
-   }
-   if ( wtype != ChessFigure::Queen && wtype != (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) ) {
-      return false;
-   }
-   return true;
+   return wcolor != color_ && ( wtype == ChessFigure::Queen || wtype == (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) );
 }
 
 static bool
