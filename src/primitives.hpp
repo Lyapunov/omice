@@ -109,11 +109,7 @@ struct MiniVector {
    unsigned char size() const {return get(CAPACITY);}
    unsigned char get(size_t i) const { return (storage_ >> (BITS * i)) & BITMASK; }
    void clear() { storage_ = 0; }
-   void clear(size_t i) { storage_ &= ~(BITMASK << (BITS*i)); }
-   void set(size_t i, unsigned char num) {
-      clear(i);
-      storage_ |= static_cast<unsigned long>(num & BITMASK) << (BITS*i);
-   }
+   void set(size_t i, unsigned char num) { storage_ = (storage_ & ~(BITMASK << (BITS*i))) | static_cast<unsigned long>(num & BITMASK) << (BITS*i); }
    void setSize(unsigned char num) { set(CAPACITY, num); }
    void push_back(unsigned char num) {
       unsigned char siz = size();
@@ -142,12 +138,7 @@ struct ChessRow {
    ChessRow() : data_(0) {}
 
    void clear() { data_ = 0; }
-   void clear(unsigned col) { data_ &= ~(unsigned(15) << (col << 2)); }
-
-   void set(unsigned col, bool color, const ChessFigure& fig) {
-      clear(col);
-      data_ |= (((static_cast<unsigned>(fig) << 1)+color) << (col << 2));
-   }
+   void set(unsigned col, bool color, const ChessFigure& fig) { data_ = (data_ & ~(unsigned(15) << (col << 2))) | (((static_cast<unsigned>(fig) << 1)+color) << (col << 2)); }
 
    ChessFigure getFigure(unsigned col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
    bool isEmpty(unsigned col) const { return !((data_ >> ((col << 2)+1)) & 7); }
