@@ -221,7 +221,8 @@ struct ChessBoard {
 
    bool isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype ) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
-   bool isMoveValid(const Pos& from, const Pos& to) const;
+   bool isMoveValid(const Pos& from, const Pos& to, bool pinned) const;
+   bool isMoveValid(const Pos& from, const Pos& to) const { return isMoveValid(from, to, isPinned(from)); }
    bool isPinned(const Pos& pos) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
    unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = INVALID) const;
