@@ -150,6 +150,7 @@ struct ChessRow {
    }
 
    ChessFigure getFigure(unsigned col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
+   bool isEmpty(unsigned col) const { return !((data_ >> ((col << 2)+1)) & 7); }
    bool getColor(unsigned col) const { return (data_ >> (col << 2)) & 1; }
 
    template <class Collector>
@@ -208,6 +209,7 @@ struct ChessBoard {
    }
    bool getColor(const Pos& pos) const { return data_[pos.row].getColor(pos.col); }
    ChessFigure getFigure(const Pos& pos) const { return pos.valid() ? data_[pos.row].getFigure(pos.col) : ChessFigure::None; }
+   bool isEmpty(const Pos& pos) const { return data_[pos.row].isEmpty(pos.col); }
    void set(const Pos& pos, bool color, ChessFigure fig) {
       assert( pos.row >= 0 && pos.row < NUMBER_OF_ROWS );
       data_[pos.row].set(pos.col, color, fig);

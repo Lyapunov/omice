@@ -109,8 +109,8 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
             return from.col == to.col
                 && ttype == ChessFigure::None
                 && ( color_
-                ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && getFigure(Pos(from.row+1,from.col)) == ChessFigure::None )
-                : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && getFigure(Pos(to.row+1,to.col)) == ChessFigure::None ) );
+                ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && isEmpty(Pos(from.row+1,from.col)) )
+                : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && isEmpty(Pos(to.row+1,to.col)) ) );
          }
       case ChessFigure::Knight:
          return (abs(from.row - to.row) == 1 && abs(from.col - to.col) == 2)
@@ -120,11 +120,10 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
             return false;
          }
          {
-            Pos acc = from;
             Pos dir(to.row > from.row ? +1 : -1, to.col > from.col ? +1 : -1);
-            acc.move(dir);
+            Pos acc = from.add(dir);
             while ( !(acc == to) ) {
-               if ( getFigure(acc) != ChessFigure::None ) {
+               if ( !isEmpty(acc) ) {
                   return false;
                }
                acc.move(dir);
@@ -136,11 +135,10 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
             return false;
          }
          {
-            Pos acc = from;
             Pos dir(to.row > from.row ? +1 : (to.row == from.row ? 0 : -1), to.col > from.col ? +1 : (to.col == from.col ? 0 : -1));
-            acc.move(dir);
+            Pos acc = from.add(dir);
             while ( !(acc == to) ) {
-               if ( getFigure(acc) != ChessFigure::None ) {
+               if ( !isEmpty(acc) ) {
                   return false;
                }
                acc.move(dir);
@@ -164,7 +162,7 @@ ChessBoard::testCastleWalk(const Pos& from, const Pos& to, int row, int source, 
    for ( int lcol = std::min(source, target); lcol <= std::max(source, target); lcol++ ) {
       // is vacant?
       Pos lpos(row, lcol);
-      if ( (!(lpos == to) && !(lpos == from) && getFigure(lpos) != ChessFigure::None) || (king && hasWatcher(!color_, lpos) ) ) {
+      if ( (!(lpos == to) && !(lpos == from) && !isEmpty(lpos)) || (king && hasWatcher(!color_, lpos)) ) {
          return false;
       }
    }
@@ -203,8 +201,7 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to) const {
 
 Pos
 ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
-   Pos acc = pos;
-   acc.move(dir);
+   Pos acc = pos.add(dir);
 
    // Pawn
    if ( dir.col && dir.row == (attackerColor ? -1 : +1) && getFigure(acc) == ChessFigure::Pawn && getColor(acc) == attackerColor ) {
@@ -217,7 +214,7 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
    }
 
    // Bishop, Rook, Queen
-   while ( acc.valid() && getFigure(acc) == ChessFigure::None ) {
+   while ( acc.valid() && isEmpty(acc) ) {
       acc.move(dir);
    }
    auto minorType = dir.minorType();
