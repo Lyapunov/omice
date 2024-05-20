@@ -182,17 +182,19 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
    if ( !from.valid() || !to.valid() || from == to ) {
       return false;
    }
-   const auto scolor = getColor(from);
-   const auto stype = getFigure(from);
+   const auto ssq = getSquare(from);
+   const ChessFigure stype = static_cast<ChessFigure>(ssq >> 1);
+   const bool scolor = (ssq & 1);
    if ( stype == ChessFigure::None || scolor != color_ ) {
       return false;
    }
    if ( pinned && !to.sub(from).isInDir(from.sub(kings_[scolor]).dir()) ) {
       return false;
    }
-   const auto tcolor = getColor(to);
-   const auto ttype = getFigure(to);
-   if ( ttype != ChessFigure::None && scolor == tcolor ) {
+   const auto tsq = getSquare(to);
+   const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
+   const bool tcolor = (tsq & 1);
+   if ( ttype != ChessFigure::None && tcolor == color_ ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
    return isMoveValidInternal(from, to, stype, ttype)
@@ -406,8 +408,9 @@ ChessBoard::move(const std::string& desc) {
 
 void
 ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
-   const auto stype = getFigure(from);
-   const auto scolor = getColor(from);
+   const auto ssq = getSquare(from);
+   const ChessFigure stype = static_cast<ChessFigure>(ssq >> 1);
+   const bool scolor = (ssq & 1);
 
    unsigned sofs = (scolor ? 0 : CASTS_SIDES);
    if ( stype == ChessFigure::King ) {
@@ -422,8 +425,9 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
       }
    }
 
-   const auto ttype = getFigure(to);
-   const auto tcolor = getColor(to);
+   const auto tsq = getSquare(to);
+   const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
+   const bool tcolor = (tsq & 1);
    if ( stype == ChessFigure::King && ttype == ChessFigure::Rook && scolor == tcolor ) { // castling
       set(from, false, ChessFigure::None);
       set(to,   false, ChessFigure::None);
@@ -499,14 +503,16 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          return false;
       case ChessFigure::Knight:
          {
-            Pos kpos = pos.add(KNIGHT_FIRST_DIR);
-            Pos kshift = KNIGHT_FIRST_SHIFT;
-            for ( size_t i = 0; i < 8; i ++ ) {
-               if ( isMoveValid(pos, kpos, pinned, check) ) {
-                  return true;
+            if ( !pinned ) {
+               Pos kpos = pos.add(KNIGHT_FIRST_DIR);
+               Pos kshift = KNIGHT_FIRST_SHIFT;
+               for ( size_t i = 0; i < 8; i ++ ) {
+                  if ( isMoveValid(pos, kpos, pinned, check) ) {
+                     return true;
+                  }
+                  kpos.move(kshift);
+                  kshift.knightShiftRot();
                }
-               kpos.move(kshift);
-               kshift.knightShiftRot();
             }
          }
          return false;

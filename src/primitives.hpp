@@ -151,9 +151,10 @@ struct ChessRow {
    void clear() { data_ = 0; }
    void set(unsigned col, bool color, const ChessFigure& fig) { data_ = (data_ & ~(unsigned(15) << (col << 2))) | (((static_cast<unsigned>(fig) << 1)+color) << (col << 2)); }
 
-   ChessFigure getFigure(unsigned col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
-   bool isEmpty(unsigned col) const { return !((data_ >> ((col << 2)+1)) & 7); }
-   bool getColor(unsigned col) const { return (data_ >> (col << 2)) & 1; }
+   bool getColor(unsigned char col) const { return (data_ >> (col << 2)) & 1; }
+   ChessFigure getFigure(unsigned char col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
+   bool isEmpty(unsigned char col) const { return !((data_ >> ((col << 2)+1)) & 7); }
+   unsigned getSquare(unsigned char col) const { return (data_ >> (col << 2)) & 15; }
 
    template <class Collector>
    char iter(const bool color, const ChessFigure& fig) const {
@@ -210,7 +211,9 @@ struct ChessBoard {
       os << BOARD_DRAW_CORNER << std::endl;
    }
    bool getColor(const Pos& pos) const { return data_[pos.row].getColor(pos.col); }
-   ChessFigure getFigure(const Pos& pos) const { return pos.valid() ? data_[pos.row].getFigure(pos.col) : ChessFigure::None; }
+   ChessFigure getFigure(const Pos& pos) const { return pos.valid() ? getFigureUnsafe(pos) : ChessFigure::None; }
+   ChessFigure getFigureUnsafe(const Pos& pos) const { return data_[pos.row].getFigure(pos.col); }
+   unsigned getSquare(const Pos& pos) const { return data_[pos.row].getSquare(pos.col); }
    bool isEmpty(const Pos& pos) const { return data_[pos.row].isEmpty(pos.col); }
    void set(const Pos& pos, bool color, ChessFigure fig) {
       assert( pos.row >= 0 && pos.row < NUMBER_OF_ROWS );
