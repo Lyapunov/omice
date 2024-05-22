@@ -504,14 +504,8 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          if ( !check ) {
             for ( unsigned i = 0; i < 2; i++ ) { // castles
                auto rpos = getCastPos(color_, i);
-               if ( rpos.valid() ) {
-                  auto rcolor = getColor(rpos);
-                  auto rtype = getFigure(rpos);
-                  if ( rcolor == color_ || rtype == ChessFigure::Rook ) {
-                     if ( isMoveValid(pos, rpos, pinned, check) ) {
-                        return true;
-                     }
-                  }
+               if ( rpos.valid() && isMoveValid(pos, rpos, pinned, check) ) {
+                  return true;
                }
             }
          }
