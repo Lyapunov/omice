@@ -113,29 +113,15 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
                 : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && isEmpty(Pos(to.row+1,to.col)) ) );
          }
       case ChessFigure::Knight:
-         return (abs(from.row - to.row) == 1 && abs(from.col - to.col) == 2)
-             || (abs(from.row - to.row) == 2 && abs(from.col - to.col) == 1);
+         return abs(from.row - to.row) * abs(from.col - to.col) == 2;
       case ChessFigure::Bishop:
-         if ( abs(from.row - to.row) != abs(from.col - to.col) ) {
-            return false;
-         }
-         {
-            Pos dir(to.row > from.row ? +1 : -1, to.col > from.col ? +1 : -1);
-            Pos acc = from.add(dir);
-            while ( !(acc == to) ) {
-               if ( !isEmpty(acc) ) {
-                  return false;
-               }
-               acc.move(dir);
-            }
-         }
-         return true;
       case ChessFigure::Rook:
-         if ( from.row != to.row && from.col != to.col ) {
-            return false;
-         }
+      case ChessFigure::Queen:
          {
-            Pos dir(to.row > from.row ? +1 : (to.row == from.row ? 0 : -1), to.col > from.col ? +1 : (to.col == from.col ? 0 : -1));
+            Pos dir = to.sub(from).dir();
+            if ( dir.null() || ( stype != ChessFigure::Queen && stype != dir.minorType() ) ) {
+               return false;
+            }
             Pos acc = from.add(dir);
             while ( !(acc == to) ) {
                if ( !isEmpty(acc) ) {
@@ -145,8 +131,6 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
             }
          }
          return true;
-      case ChessFigure::Queen:
-         return isMoveValidInternal(from, to, ChessFigure::Rook, ttype) || isMoveValidInternal(from, to, ChessFigure::Bishop, ttype);
       case ChessFigure::King:
          return abs(from.col - to.col) <= 1
              && abs(from.row - to.row) <= 1
