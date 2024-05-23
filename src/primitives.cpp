@@ -472,15 +472,17 @@ intersect(const Pos& pos, const Pos& dir, const Pos& king, const Pos& checker) {
 bool
 ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char check, const Pos& checker) const {
    bool pinned = stype != ChessFigure::King && isPinned(pos);
+   bool easy = !pinned && !check;
    switch ( stype ) {
       case ChessFigure::Pawn:
          {
-            Pos dir;
-            for ( dir.row = +1; dir.row <= +2; dir.row++ ) {
-               for ( dir.col = -2+dir.row; dir.col <= 2- dir.row; dir.col++ ) {
-                  if ( isMoveValid(pos, color_ ? pos.add(dir) : pos.sub(dir), pinned, check) ) {
-                     return true;
-                  }
+            Pos dir(1, 0); // if moving +2 is possible, then moving +1 is also possible
+            if ( easy && isEmpty(color_ ? pos.add(dir) : pos.sub(dir)) ) { // optimization only
+               return true;
+            }
+            for ( dir.col = -1; dir.col <= 1; dir.col++ ) {
+               if ( isMoveValid(pos, color_ ? pos.add(dir) : pos.sub(dir), pinned, check) ) {
+                  return true;
                }
             }
          }
@@ -491,7 +493,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
                Pos kpos = pos.add(KNIGHT_FIRST_DIR);
                Pos kshift = KNIGHT_FIRST_SHIFT;
                for ( size_t i = 0; i < 8; i ++ ) {
-                  if ( isMoveValid(pos, kpos, pinned, check) ) {
+                  if ( kpos.valid() && isEmpty(kpos) ) {
                      return true;
                   }
                   kpos.move(kshift);
@@ -501,14 +503,6 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          }
          return false;
       case ChessFigure::King:
-         if ( !check ) {
-            for ( unsigned i = 0; i < 2; i++ ) { // castles
-               auto rpos = getCastPos(color_, i);
-               if ( rpos.valid() && isMoveValid(pos, rpos, pinned, check) ) {
-                  return true;
-               }
-            }
-         }
          {
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
@@ -519,6 +513,14 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
                   if ( isMoveValid(pos, pos.add(dir), pinned, check) ) {
                      return true;
                   }
+               }
+            }
+         }
+         if ( !check ) {
+            for ( unsigned i = 0; i < 2; i++ ) { // castles
+               auto rpos = getCastPos(color_, i);
+               if ( rpos.valid() && isMoveValid(pos, rpos, pinned, check) ) {
+                  return true;
                }
             }
          }
@@ -534,9 +536,11 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
                   if ( !dir.row && !dir.col ) {
                      continue;
                   }
-
+                  if ( ( stype == ChessFigure::Rook && !dir.isAxialDir() ) || ( stype == ChessFigure::Bishop && dir.isAxialDir() ) ) {
+                     continue;
+                  }
                   Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
-                  if ( test.valid() && isMoveValid(pos, test, pinned, check) ) {
+                  if ( test.valid() && ( easy ? ( isEmpty(test) || getColor(test) != color_ ) : isMoveValid(pos, test, pinned, check) ) ) {
                      return true;
                   }
                }
