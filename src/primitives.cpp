@@ -3,8 +3,8 @@
 #include <chrono>
 #include <valgrind/callgrind.h>
 
-const Pos KNIGHT_FIRST_DIR(-2,+1);
-const Pos KNIGHT_FIRST_SHIFT(+1,+1);
+const Pos KNIGHT_FIRST_DIR(+1,+2);
+const Pos KNIGHT_FIRST_SHIFT(+1,-1);
 
 Pos
 Pos::dir() const {
@@ -217,8 +217,8 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    }
 
    // Knight
-   Pos kpos = pos.add(KNIGHT_FIRST_DIR);
-   Pos kshift = KNIGHT_FIRST_SHIFT;
+   Pos kpos = color_ ? pos.add(KNIGHT_FIRST_DIR) : pos.sub(KNIGHT_FIRST_DIR);
+   Pos kshift = color_ ? KNIGHT_FIRST_SHIFT : KNIGHT_FIRST_SHIFT.neg();
    for ( size_t i = 0; i < 8; i ++ ) {
       if ( getFigure(kpos) == ChessFigure::Knight && getColor(kpos) == attackerColor && !( newBlocker.valid() && kpos == newBlocker ) ) {
          attackerPos = kpos;
@@ -490,8 +490,8 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
       case ChessFigure::Knight:
          {
             if ( !pinned ) {
-               Pos kpos = pos.add(KNIGHT_FIRST_DIR);
-               Pos kshift = KNIGHT_FIRST_SHIFT;
+               Pos kpos = color_ ? pos.add(KNIGHT_FIRST_DIR) : pos.sub(KNIGHT_FIRST_DIR);
+               Pos kshift = color_ ? KNIGHT_FIRST_SHIFT : KNIGHT_FIRST_SHIFT.neg();
                for ( size_t i = 0; i < 8; i ++ ) {
                   if ( kpos.valid() && isEmpty(kpos) ) {
                      return true;

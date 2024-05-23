@@ -73,6 +73,7 @@ struct Pos {
    Pos mul(char n) const { return Pos(row*n, col*n); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
    Pos dir() const;
+   Pos neg() const { return Pos(-row, -col); }
    char dot(const Pos& rhs) const { return rhs.row * row + rhs.col * col; }
    bool isAxialDir() const { return !row || !col; }
    bool isDiagonal() const { return row && col; }
