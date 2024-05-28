@@ -3,19 +3,16 @@
 #include <chrono>
 #include <valgrind/callgrind.h>
 
+template <class T> inline T tabs(const T& v) { return v >= 0 ? v : -v; }
+template <class T> inline T tsgn(const T& v) { return v ? ( v >= 0 ? +1 :-1 ) : 0; }
+
 const Pos KNIGHT_FIRST_DIR(+1,+2);
 const Pos KNIGHT_FIRST_SHIFT(+1,-1);
 
 Pos
 Pos::dir() const {
-   if ( !row && col ) {
-      return Pos(0, col > 0 ? +1: -1);
-   }
-   if ( row && !col ) {
-      return Pos(row > 0 ? +1 : -1, 0);
-   }
-   if ( abs(row) == abs(col) ) {
-      return Pos(row > 0 ? +1 : -1, col > 0 ? +1 : -1);
+   if ( !row || !col || tabs(row) == tabs(col) ) {
+      return Pos(tsgn(row), tsgn(col));
    }
    return NULLPOS;
 }
@@ -562,7 +559,7 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
       // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
       Pos checker;
       unsigned int cktype = getChecker(color_, checker);
-      if ( cktype == 2 ) { // double check: the king must move (even if it takes an attacker
+      if ( cktype == 2 ) { // double check: the king must move / take
          if ( isMobilePiece(kings_[color_], ChessFigure::King, cktype, checker) ) {
             push_back(pieces, kings_[color_]);
          }
