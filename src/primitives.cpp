@@ -510,7 +510,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
                   if ( !dir.row && !dir.col ) {
                      continue;
                   }
-                  if ( isMoveValid(pos, pos.add(dir), pinned, check) ) {
+                  if ( isMoveValid(pos, pos.add(dir), false, check) ) {
                      return true;
                   }
                }
@@ -519,7 +519,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          if ( !check ) {
             for ( unsigned i = 0; i < 2; i++ ) { // castles
                auto rpos = getCastPos(color_, i);
-               if ( rpos.valid() && isMoveValid(pos, rpos, pinned, check) ) {
+               if ( rpos.valid() && isMoveValid(pos, rpos, false, check) ) {
                   return true;
                }
             }
