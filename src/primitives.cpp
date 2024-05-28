@@ -181,26 +181,31 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
    return isMoveValidInternal(from, to, stype, ttype)
        && (stype == ChessFigure::King || !checkDanger || !countWatchers(!color_, kings_[color_], 1, to));
 }
-
 Pos
-ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
+ChessBoard::getPieceFromLine(const Pos& pos, const Pos& dir) const {
    Pos acc = pos.add(dir);
-   const auto acolor = getColor(acc);
-   const auto atype = getFigure(acc);
-
-   // Pawn or King
-   if ( acolor == attackerColor && ( ( atype == ChessFigure::Pawn && dir.isPawnDir(attackerColor) ) || atype == ChessFigure::King ) ) {
-      return acc;
-   }
 
    // Bishop, Rook, Queen
    while ( acc.valid() && isEmpty(acc) ) {
       acc.move(dir);
    }
-   if ( acc.valid() && getColor(acc) == attackerColor ) {
-      auto atype = getFigure(acc);
-      if ( atype == ChessFigure::Queen || atype == dir.minorType() ) {
-         return acc;
+   return acc;
+}
+
+Pos
+ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
+   Pos acc = getPieceFromLine(pos, dir);
+   if ( acc.valid() ) {
+      if ( getColor(acc) == attackerColor ) {
+         auto atype = getFigure(acc);
+         if ( atype == ChessFigure::Queen || atype == dir.minorType() ) {
+            return acc;
+         }
+         if ( pos.add(dir) == acc ) {
+            if ( atype == ChessFigure::King || (atype == ChessFigure::Pawn && dir.isPawnDir(attackerColor)) ) {
+               return acc;
+            }
+         }
       }
    }
    return INVALID;
@@ -262,7 +267,7 @@ ChessBoard::isPinned(const Pos& pos) const {
    if ( dir.null() ) {
       return false;
    }
-   Pos ipos = getWatcherFromLine(color_, kings_[color_], dir);
+   Pos ipos = getPieceFromLine(kings_[color_], dir);
    if ( !(ipos == pos) ) {
       return false;
    }

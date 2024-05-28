@@ -67,8 +67,14 @@ struct Pos {
    char pcol() const { return 'a' + col; }
    char prow() const { return '1' + row; }
    unsigned char code() const { return (static_cast<unsigned char>(row) << 3) + static_cast<unsigned char>(col); }
-   void debugPrint(std::ostream& os) const { os << pcol() << prow(); }
-   void vecPrint(std::ostream& os) const { os << "(" << int(col) << ", " << int(row) << ")"; }
+   void debugPrint(std::ostream& os) const {
+      if ( valid() ) {
+         os << pcol() << prow();
+      } else {
+         os << "NA";
+      }
+   }
+   void vecPrint(std::ostream& os) const { os << "(col:" << int(col) << ", row:" << int(row) << ")"; }
    Pos add(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
    Pos mul(char n) const { return Pos(row*n, col*n); }
@@ -241,6 +247,7 @@ struct ChessBoard {
    bool isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned char checkDanger) const;
    bool isMoveValid(const Pos& from, const Pos& to) const { return isMoveValid(from, to, isPinned(from), 1); }
    bool isPinned(const Pos& pos) const;
+   Pos getPieceFromLine(const Pos& pos, const Pos& dir) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
    unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = INVALID) const;
    unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval, const Pos& newBlocker, Pos& attackerPos) const;
