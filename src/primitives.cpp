@@ -127,10 +127,7 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
          }
          return true;
       case ChessFigure::King:
-         return abs(from.col - to.col) <= 1
-             && abs(from.row - to.row) <= 1
-             && !hasWatcher(!color_, to)
-             && !getWatcherFromLine(!color_, from, from.sub(to)).valid();
+         return ( abs(from.col - to.col) <= 1 && abs(from.row - to.row) <= 1 ) || isCastleValid(from, to) ;
       default:
          return false;
    }
@@ -170,6 +167,10 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
    if ( stype == ChessFigure::None || scolor != color_ ) {
       return false;
    }
+   if ( !isMoveValidInternal(from, to, stype) ) {
+      return false;
+   }
+
    const auto tsq = getSquare(to);
    const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
    const bool tcolor = (tsq & 1);
@@ -186,9 +187,13 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
    if ( stype != ChessFigure::King && checkDanger && countWatchers(!color_, kings_[color_], 1, to) ) {
       return false;
    }
-
-   return isMoveValidInternal(from, to, stype);
+   // 4. the king cannot step into a check
+   if ( stype == ChessFigure::King && ( hasWatcher(!color_, to) || getWatcherFromLine(!color_, from, from.sub(to)).valid() ) ) {
+      return false;
+   }
+   return true;
 }
+
 Pos
 ChessBoard::getPieceFromLine(const Pos& pos, const Pos& dir) const {
    Pos acc = pos.add(dir);
