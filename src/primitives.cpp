@@ -95,16 +95,14 @@ ChessBoard::validHeavy() const {
 }
 
 bool
-ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype) const {
+ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype) const {
    switch ( stype ) {
       case ChessFigure::Pawn:
          if ( to.sub(from).isDiagonal() ) {
             return abs(from.col - to.col) == 1
-               && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 )
-               && ( ttype != ChessFigure::None || isEnpassantTarget(to) );
+               && ( color_ ? from.row + 1 == to.row : from.row == to.row + 1 );
          } else {
             return from.col == to.col
-                && ttype == ChessFigure::None
                 && ( color_
                 ? from.row + 1 == to.row || ( from.row == FIRST_PAWN_ROW && from.row + 2 == to.row && isEmpty(Pos(from.row+1,from.col)) )
                 : from.row == to.row + 1 || ( from.row == LAST_PAWN_ROW  && from.row == to.row + 2 && isEmpty(Pos(to.row+1,to.col)) ) );
@@ -163,23 +161,33 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
    if ( !from.valid() || !to.valid() || from == to ) {
       return false;
    }
+   if ( pinned && !to.sub(from).isInDir(from.sub(kings_[color_]).dir()) ) {
+      return false;
+   }
    const auto ssq = getSquare(from);
    const ChessFigure stype = static_cast<ChessFigure>(ssq >> 1);
    const bool scolor = (ssq & 1);
    if ( stype == ChessFigure::None || scolor != color_ ) {
       return false;
    }
-   if ( pinned && !to.sub(from).isInDir(from.sub(kings_[scolor]).dir()) ) {
-      return false;
-   }
    const auto tsq = getSquare(to);
    const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
    const bool tcolor = (tsq & 1);
+
+   // 1. castling rule
    if ( ttype != ChessFigure::None && tcolor == color_ ) {
       return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
    }
-   return isMoveValidInternal(from, to, stype, ttype)
-       && (stype == ChessFigure::King || !checkDanger || !countWatchers(!color_, kings_[color_], 1, to));
+   // 2. pawn-moves-forward-takes-diagonally-rule
+   if ( stype == ChessFigure::Pawn && !( to.sub(from).isDiagonal() ? (ttype != ChessFigure::None || isEnpassantTarget(to)) : ttype == ChessFigure::None ) ) {
+      return false;
+   }
+   // 3. if the king is in check then the piece must block the check
+   if ( stype != ChessFigure::King && checkDanger && countWatchers(!color_, kings_[color_], 1, to) ) {
+      return false;
+   }
+
+   return isMoveValidInternal(from, to, stype);
 }
 Pos
 ChessBoard::getPieceFromLine(const Pos& pos, const Pos& dir) const {

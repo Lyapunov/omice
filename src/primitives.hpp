@@ -242,7 +242,7 @@ struct ChessBoard {
    }
    bool testCastleWalk(const Pos& from, const Pos& to, int row, int source, int target, bool king) const;
 
-   bool isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype, const ChessFigure& ttype ) const;
+   bool isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype) const;
    bool isCastleValid(const Pos& from, const Pos& to) const;
    bool isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned char checkDanger) const;
    bool isMoveValid(const Pos& from, const Pos& to) const { return isMoveValid(from, to, isPinned(from), 1); }
