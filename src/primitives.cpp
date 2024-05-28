@@ -509,9 +509,6 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
                for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
-                  if ( !dir.row && !dir.col ) {
-                     continue;
-                  }
                   if ( isMoveValid(pos, pos.add(dir), false, check) ) {
                      return true;
                   }
@@ -521,7 +518,9 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
          if ( !check ) {
             for ( unsigned i = 0; i < 2; i++ ) { // castles
                auto rpos = getCastPos(color_, i);
-               if ( rpos.valid() && isMoveValid(pos, rpos, false, check) ) {
+               // if the king is not mobile, then trying to castle is futile EXCEPT when in Fischer random chess
+               // the rook neighbours the king
+               if ( rpos.valid() && !tabs(rpos.col-kings_[color_].col) && isMoveValid(pos, rpos, false, check) ) {
                   return true;
                }
             }
@@ -535,10 +534,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
                for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
-                  if ( !dir.row && !dir.col ) {
-                     continue;
-                  }
-                  if ( ( stype == ChessFigure::Rook && !dir.isAxialDir() ) || ( stype == ChessFigure::Bishop && dir.isAxialDir() ) ) {
+                  if ( dir.null() || ( stype == ChessFigure::Rook && !dir.isAxialDir() ) || ( stype == ChessFigure::Bishop && dir.isAxialDir() ) ) {
                      continue;
                   }
                   Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
