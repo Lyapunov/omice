@@ -31,10 +31,11 @@ constexpr char BOARD_DRAW_COL_SEPARATOR = '|';
 constexpr char BOARD_DRAW_ROW_SEPARATOR = '-';
 constexpr char BOARD_DRAW_CORNER= '*';
 constexpr char CHAR_INVALID='-';
-constexpr bool WHITE = true;
-constexpr bool BLACK = false;
+constexpr unsigned char WHITE = 1;
+constexpr unsigned char BLACK = 0;
+constexpr unsigned char INVALID_COLOR = 255;
 const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
-const std::array<bool, 2> COLORS = {BLACK, WHITE};
+const std::array<unsigned char, 2> COLORS = {BLACK, WHITE};
 
 enum class ChessFigure {
    None,
@@ -190,7 +191,7 @@ bool operator==( const Pos& lhs, const Pos& rhs ) {
 }
 
 struct ChessBoard {
-   ChessBoard() : data_(), color_(true), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}) {}
+   ChessBoard() : data_(), color_(INVALID_COLOR), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}) {}
 
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
    bool initFEN(const std::string& str);
@@ -204,7 +205,8 @@ struct ChessBoard {
    Pos getCastPos(bool color, unsigned i) const {
       return getCastPos(i + (color ? 0 : CASTS_SIDES));
    }
-   bool valid() const;
+   bool valid() const { return color_ != INVALID_COLOR; } // validHeavy always must run after init
+   bool validHeavy() const;
    void debugPrintRowSeparator(std::ostream& os) const {
       for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
          os << BOARD_DRAW_CORNER << BOARD_DRAW_ROW_SEPARATOR;
@@ -273,7 +275,7 @@ struct ChessBoard {
    void debugPrint(std::ostream& os) const;
 
    std::array<ChessRow, NUMBER_OF_ROWS> data_;
-   bool color_; // white = true, blue = false
+   unsigned char color_; // white = true, blue = false, invalid state = 255
    std::array<char, NUMBER_OF_CASTS> casts_;
    char enpassant_;
    std::array<unsigned char, NUMBER_OF_CLOCKS> clocks_;

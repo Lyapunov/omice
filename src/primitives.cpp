@@ -70,7 +70,7 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
    kings_ = { find(BLACK, ChessFigure::King), find(WHITE, ChessFigure::King) };
-   return true;
+   return validHeavy();
 }
 
 bool
@@ -82,7 +82,7 @@ ChessBoard::initFEN(const std::string& str) {
 }
 
 bool
-ChessBoard::valid() const {
+ChessBoard::validHeavy() const {
    for ( const auto& color : COLORS ) {
       if ( count(color, ChessFigure::King) != 1 || getFigure(kings_[color]) != ChessFigure::King || getColor(kings_[color]) != color || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
          return false;
@@ -557,6 +557,7 @@ void
 ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const {
    pawns.clear();
    pieces.clear();
+
    if ( valid() ) {
       // There ways to solve a check: a.) move with the king b.) block with another piece c.) capture the attacker
       Pos checker;
@@ -585,6 +586,7 @@ void
 ChessBoard::debugPrint(std::ostream& os) const {
    if ( !valid() ) {
       os << "!!!INVALID!!!" << std::endl;
+      return;
    }
    for ( int row = NUMBER_OF_ROWS - 1; row >= 0; row-- ) {
       os << " ";
