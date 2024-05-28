@@ -163,6 +163,7 @@ struct ChessRow {
    ChessFigure getFigure(unsigned char col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
    bool isEmpty(unsigned char col) const { return !((data_ >> ((col << 2)+1)) & 7); }
    unsigned getSquare(unsigned char col) const { return (data_ >> (col << 2)) & 15; }
+   unsigned getData() const { return data_; }
 
    template <class Collector>
    char iter(const bool color, const ChessFigure& fig) const {

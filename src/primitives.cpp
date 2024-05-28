@@ -580,13 +580,16 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
       } else {
          Pos pos;
          for ( pos.row = 0; pos.row < NUMBER_OF_ROWS; pos.row++ ) {
+            unsigned psq = data_[pos.row].getData();
             for ( pos.col = 0; pos.col < NUMBER_OF_COLS; pos.col++ ) {
-               auto ptype = getFigure(pos);
-               if ( ptype != ChessFigure::None && getColor(pos) == color_ ) {
+               const ChessFigure ptype = static_cast<ChessFigure>((psq & 15) >> 1);
+               const bool pcolor = (psq & 1);
+               if ( ptype != ChessFigure::None && pcolor == color_ ) {
                   if ( isMobilePiece(pos, ptype, cktype, checker) ) {
                      push_back(ptype == ChessFigure::Pawn ? pawns : pieces, pos);
                   }
                }
+               psq >>= 4;
             }
          }
       }
