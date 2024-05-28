@@ -517,7 +517,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
                for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
-                  if ( isMoveValid(pos, pos.add(dir), false, check) ) {
+                  if ( isMoveValid(pos, pos.add(dir), false, false) ) {
                      return true;
                   }
                }
