@@ -166,10 +166,6 @@ void set(MiniPosVector& vec, size_t i, const Pos& pos) { vec.set(i, pos.code());
 void push_back(MiniPosVector& vec, const Pos& pos) { vec.push_back(pos.code()); }
 std::ostream& operator<<(std::ostream& os, const MiniPosVector& vec);
 
-struct MyBoard {
-   std::array<std::array<unsigned char, 8>, 8> data_;
-};
-
 struct ChessRow {
    ChessRow() : data_() {}
 
