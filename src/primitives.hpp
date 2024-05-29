@@ -70,10 +70,7 @@ struct ChessSquare {
 };
 
 std::ostream& operator<<(std::ostream& os, const ChessSquare& sq);
-
-bool operator==( const ChessSquare& lhs, const ChessSquare& rhs ) {
-   return lhs.equals(rhs);
-}
+bool operator==( const ChessSquare& lhs, const ChessSquare& rhs ) { return lhs.equals(rhs); }
 
 struct ChessSquarePair {
    ChessSquarePair() : data_(0) {}
@@ -92,8 +89,10 @@ template <class T> inline T tabs(const T& v) { return v >= 0 ? v : -v; }
 template <class T> inline T tsgn(const T& v) { return v ? ( v >= 0 ? +1 :-1 ) : 0; }
 
 struct Pos {
-   Pos(char prow = 0, char pcol = 0) : row(prow), col(pcol) {}
+   constexpr Pos(char prow = 0, char pcol = 0) : row(prow), col(pcol) {}
    bool equals( const Pos& rhs ) const { return row == rhs.row && col == rhs.col; }
+   static constexpr Pos NULLPOS() { return Pos(0, 0); }
+   static constexpr Pos INVALID() { return Pos(-1, -1); }
    void prevRow() { row--; col = 0; }
    void nextCol(int num = 1) { col+= num; }
    void move(const Pos& dir) { row += dir.row; col += dir.col; }
@@ -107,7 +106,7 @@ struct Pos {
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
    Pos mul(char n) const { return Pos(row*n, col*n); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
-   Pos dir() const { return ( !row || !col || tabs(row) == tabs(col) ? Pos(tsgn(row), tsgn(col)) : Pos(0, 0) ); }
+   Pos dir() const { return ( !row || !col || tabs(row) == tabs(col) ? Pos(tsgn(row), tsgn(col)) : NULLPOS() ); }
    Pos neg() const { return Pos(-row, -col); }
    char dot(const Pos& rhs) const { return rhs.row * row + rhs.col * col; }
    bool isAxialDir() const { return !row || !col; }
@@ -131,14 +130,8 @@ struct Pos {
 };
 Pos PosFromCode(unsigned char code) { return Pos((code >> 3) & 7, code & 7); }
 
-Pos INVALID = Pos(-1, -1);
-Pos NULLPOS = Pos(0, 0);
-
 std::ostream& operator<<(std::ostream& os, const Pos& pos);
-
-bool operator==( const Pos& lhs, const Pos& rhs ) {
-   return lhs.equals(rhs);
-}
+bool operator==( const Pos& lhs, const Pos& rhs ) { return lhs.equals(rhs); }
 
 template <unsigned BITS = 6>
 struct MiniVector {
@@ -208,7 +201,7 @@ struct ChessRow {
 std::ostream& operator<<(std::ostream& os, const ChessRow& row);
 
 struct ChessBoard {
-   ChessBoard() : data_(), color_(INVALID_MARKER), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}), kings_({INVALID, INVALID}) {}
+   ChessBoard() : data_(), color_(INVALID_MARKER), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}), kings_({Pos::INVALID(), Pos::INVALID()}) {}
 
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
    bool initFEN(const std::string& str);
@@ -217,7 +210,7 @@ struct ChessBoard {
       assert( initFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", "w", "AHah", "-", 0, 1) );
    }
    Pos getCastPos(unsigned i) const {
-      return casts_[i] == CHAR_INVALID ? INVALID : Pos(i < CASTS_SIDES ? FIRST_ROW : LAST_ROW, toupper(casts_[i]) - 'A');
+      return casts_[i] == CHAR_INVALID ? Pos::INVALID() : Pos(i < CASTS_SIDES ? FIRST_ROW : LAST_ROW, toupper(casts_[i]) - 'A');
    }
    Pos getCastPos(bool color, unsigned i) const {
       return getCastPos(i + (color ? 0 : CASTS_SIDES));
@@ -258,11 +251,11 @@ struct ChessBoard {
    bool isPinned(const Pos& pos) const;
    Pos getPieceFromLine(const Pos& pos, const Pos& dir) const;
    Pos getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const;
-   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = INVALID) const;
+   unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval = 255, const Pos& newBlocker = Pos::INVALID()) const;
    unsigned char countWatchers(const bool color, const Pos& pos, unsigned char maxval, const Pos& newBlocker, Pos& attackerPos) const;
    bool hasWatcher(const bool color, const Pos& pos) const { return countWatchers(color, pos, 1); }
    bool check(bool color) const { return countWatchers(!color, kings_[color], 1); }
-   unsigned char getChecker(bool color, Pos& pos) const { return countWatchers(!color, kings_[color], 2, INVALID, pos); }
+   unsigned char getChecker(bool color, Pos& pos) const { return countWatchers(!color, kings_[color], 2, Pos::INVALID(), pos); }
 
    unsigned count(const ChessSquare& sq) const {
       unsigned retval = 0;

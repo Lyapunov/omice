@@ -208,7 +208,7 @@ ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& di
          }
       }
    }
-   return INVALID;
+   return Pos::INVALID();
 }
 
 unsigned char
@@ -258,7 +258,7 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
 
 unsigned char
 ChessBoard::countWatchers(const bool color, const Pos& pos, unsigned char maxval, const Pos& newBlocker) const {
-   Pos attacker = INVALID;
+   Pos attacker = Pos::INVALID();
    return countWatchers(color, pos, maxval, newBlocker, attacker);
 }
 
