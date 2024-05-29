@@ -3,19 +3,8 @@
 #include <chrono>
 #include <valgrind/callgrind.h>
 
-template <class T> inline T tabs(const T& v) { return v >= 0 ? v : -v; }
-template <class T> inline T tsgn(const T& v) { return v ? ( v >= 0 ? +1 :-1 ) : 0; }
-
 const Pos KNIGHT_FIRST_DIR(+1,+2);
 const Pos KNIGHT_FIRST_SHIFT(+1,-1);
-
-Pos
-Pos::dir() const {
-   if ( !row || !col || tabs(row) == tabs(col) ) {
-      return Pos(tsgn(row), tsgn(col));
-   }
-   return NULLPOS;
-}
 
 bool
 Pos::isInDir( const Pos& dir ) const {
@@ -42,7 +31,7 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
          if ( fig == ChessFigure::None ) {
             return false;
          }
-         set(pos, isupper(elem), fig);
+         set(pos, ChessSquare(fig, isupper(elem)));
          pos.nextCol();
       }
    }
@@ -66,7 +55,6 @@ ChessBoard::initFEN(const std::string& fen, const std::string& white, const std:
    enpassant_ = enpassant.size() >= 1 ? enpassant[0] : CHAR_INVALID;
    clocks_[HALF_CLOCK] = halfMoveClock;
    clocks_[FULL_CLOCK] = fullClock;
-   kings_ = { find(BLACK, ChessFigure::King), find(WHITE, ChessFigure::King) };
    return validHeavy();
 }
 
@@ -81,12 +69,14 @@ ChessBoard::initFEN(const std::string& str) {
 bool
 ChessBoard::validHeavy() const {
    for ( const auto& color : COLORS ) {
-      if ( count(color, ChessFigure::King) != 1 || getFigure(kings_[color]) != ChessFigure::King || getColor(kings_[color]) != color || data_[color ? LAST_ROW : FIRST_ROW].count(color, ChessFigure::Pawn) ) {
+      auto ksq = getSquare(kings_[color]);
+      if ( count(ChessSquare(ChessFigure::King, color)) != 1 || !kings_[color].valid() || ksq.figure() != ChessFigure::King || ksq.color() != color || data_[color ? LAST_ROW : FIRST_ROW].count(ChessSquare(ChessFigure::Pawn, color)) ) {
          return false;
       }
       for ( unsigned i = 0; i < CASTS_SIDES; i++ ) {
          const auto pos = getCastPos(color, i);
-         if ( pos.valid() && !( getColor(pos) == color && getFigure(pos) == ChessFigure::Rook ) ) {
+         auto psq = getSquare(pos);
+         if ( pos.valid() && !( psq.color() == color && psq.figure() == ChessFigure::Rook ) ) {
             return false;
          }
       }
@@ -95,8 +85,8 @@ ChessBoard::validHeavy() const {
 }
 
 bool
-ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& stype) const {
-   switch ( stype ) {
+ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigure& sfig) const {
+   switch ( sfig ) {
       case ChessFigure::Pawn:
          if ( to.sub(from).isDiagonal() ) {
             return abs(from.col - to.col) == 1
@@ -114,7 +104,7 @@ ChessBoard::isMoveValidInternal(const Pos& from, const Pos& to, const ChessFigur
       case ChessFigure::Queen:
          {
             Pos dir = to.sub(from).dir();
-            if ( dir.null() || ( stype != ChessFigure::Queen && stype != dir.minorType() ) ) {
+            if ( dir.null() || ( sfig != ChessFigure::Queen && sfig != dir.minorType() ) ) {
                return false;
             }
             Pos acc = from.add(dir);
@@ -162,33 +152,29 @@ ChessBoard::isMoveValid(const Pos& from, const Pos& to, bool pinned, unsigned ch
       return false;
    }
    const auto ssq = getSquare(from);
-   const ChessFigure stype = static_cast<ChessFigure>(ssq >> 1);
-   const bool scolor = (ssq & 1);
-   if ( stype == ChessFigure::None || scolor != color_ ) {
+   if ( ssq.empty() || ssq.color() != color_ ) {
       return false;
    }
-   if ( !isMoveValidInternal(from, to, stype) ) {
+   if ( !isMoveValidInternal(from, to, ssq.figure()) ) {
       return false;
    }
 
    const auto tsq = getSquare(to);
-   const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
-   const bool tcolor = (tsq & 1);
 
    // 1. castling rule
-   if ( ttype != ChessFigure::None && tcolor == color_ ) {
-      return stype == ChessFigure::King && ttype == ChessFigure::Rook && isCastleValid(from, to);
+   if ( !tsq.empty() && tsq.color() == color_ ) {
+      return ssq.figure() == ChessFigure::King && tsq.figure() == ChessFigure::Rook && isCastleValid(from, to);
    }
    // 2. pawn-moves-forward-takes-diagonally-rule
-   if ( stype == ChessFigure::Pawn && !( to.sub(from).isDiagonal() ? (ttype != ChessFigure::None || isEnpassantTarget(to)) : ttype == ChessFigure::None ) ) {
+   if ( ssq.figure() == ChessFigure::Pawn && !( to.sub(from).isDiagonal() ? (!tsq.empty() || isEnpassantTarget(to)) : tsq.empty() ) ) {
       return false;
    }
    // 3. if the king is in check then the piece must block the check
-   if ( stype != ChessFigure::King && checkDanger && countWatchers(!color_, kings_[color_], 1, to) ) {
+   if ( ssq.figure() != ChessFigure::King && checkDanger && countWatchers(!color_, kings_[color_], 1, to) ) {
       return false;
    }
    // 4. the king cannot step into a check
-   if ( stype == ChessFigure::King && ( hasWatcher(!color_, to) || getWatcherFromLine(!color_, from, from.sub(to)).valid() ) ) {
+   if ( ssq.figure() == ChessFigure::King && ( hasWatcher(!color_, to) || getWatcherFromLine(!color_, from, from.sub(to)).valid() ) ) {
       return false;
    }
    return true;
@@ -209,8 +195,9 @@ Pos
 ChessBoard::getWatcherFromLine(bool attackerColor, const Pos& pos, const Pos& dir) const {
    Pos acc = getPieceFromLine(pos, dir);
    if ( acc.valid() ) {
-      if ( getColor(acc) == attackerColor ) {
-         auto atype = getFigure(acc);
+      auto sq = getSquare(acc);
+      if ( sq.color() == attackerColor ) {
+         auto atype = sq.figure();
          if ( atype == ChessFigure::Queen || atype == dir.minorType() ) {
             return acc;
          }
@@ -235,7 +222,8 @@ ChessBoard::countWatchers(bool attackerColor, const Pos& pos, unsigned char maxv
    Pos kpos = color_ ? pos.add(KNIGHT_FIRST_DIR) : pos.sub(KNIGHT_FIRST_DIR);
    Pos kshift = color_ ? KNIGHT_FIRST_SHIFT : KNIGHT_FIRST_SHIFT.neg();
    for ( size_t i = 0; i < 8; i ++ ) {
-      if ( getFigure(kpos) == ChessFigure::Knight && getColor(kpos) == attackerColor && !( newBlocker.valid() && kpos == newBlocker ) ) {
+      auto ksq = getSquare(kpos);
+      if ( ksq.figure() == ChessFigure::Knight && ksq.color() == attackerColor && !( newBlocker.valid() && kpos == newBlocker ) ) {
          attackerPos = kpos;
          if ( ++retval >= maxval ) {
             return retval;
@@ -288,9 +276,8 @@ ChessBoard::isPinned(const Pos& pos) const {
    if ( !wpos.valid() ) {
       return false;
    }
-   const auto wcolor = getColor(wpos);
-   const auto wtype = getFigure(wpos);
-   return wcolor != color_ && ( wtype == ChessFigure::Queen || wtype == (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) );
+   auto wsq = getSquare(wpos);
+   return wsq.color() != color_ && ( wsq.figure() == ChessFigure::Queen || wsq.figure() == (dir.isAxialDir() ? ChessFigure::Rook : ChessFigure::Bishop) );
 }
 
 static bool
@@ -352,7 +339,7 @@ ChessBoard::move(const std::string& desc) {
       if ( type != ' ' || prom != ' ' || acol != -1 || arow != -1 || bcol != -1 || brow != -1) {
          return false;
       }
-      Pos kpos = find(color_, ChessFigure::King);
+      Pos kpos = kings_[color_];
       if ( !kpos.valid() ) {
          return false;
       }
@@ -360,9 +347,8 @@ ChessBoard::move(const std::string& desc) {
          // right-castle
          auto pos = getCastPos(color_, casts == 3 ? 0 : 1);
          if ( pos.valid() ) {
-            auto scolor = getColor(pos);
-            auto stype = getFigure(pos);
-            if ( scolor != color_ || stype != ChessFigure::Rook ) {
+            auto sq = getSquare(pos);
+            if ( sq.color() != color_ || sq.figure() != ChessFigure::Rook ) {
                return false;
             }
          }
@@ -388,10 +374,9 @@ ChessBoard::move(const std::string& desc) {
             for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
                if ( acol == -1 || acol == col ) {
                   auto source = Pos(row, col);
-                  auto scolor = getColor(source);
-                  auto stype = getFigure(source);
-                  if ( scolor == color_ ) {
-                     if ( toFigure(type) == stype ) {
+                  auto sq = getSquare(source);
+                  if ( sq.color() == color_ ) {
+                     if ( toFigure(type) == sq.figure() ) {
                         if ( isMoveValid(source, target) ) {
                            return move(source, target, (prom == ' ' ? ChessFigure::Queen : toFigure(prom))); 
                         }
@@ -408,14 +393,12 @@ ChessBoard::move(const std::string& desc) {
 void
 ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo) {
    const auto ssq = getSquare(from);
-   const ChessFigure stype = static_cast<ChessFigure>(ssq >> 1);
-   const bool scolor = (ssq & 1);
 
-   unsigned sofs = (scolor ? 0 : CASTS_SIDES);
-   if ( stype == ChessFigure::King ) {
+   unsigned sofs = (ssq.color() ? 0 : CASTS_SIDES);
+   if ( ssq.figure() == ChessFigure::King ) {
       casts_[sofs] = CHAR_INVALID;
       casts_[sofs+1] = CHAR_INVALID;
-   } else if ( stype == ChessFigure::Rook ) {
+   } else if ( ssq.figure() == ChessFigure::Rook ) {
       if ( getCastPos(sofs) == from ) {
          casts_[sofs] = CHAR_INVALID;
       }
@@ -425,20 +408,22 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
    }
 
    const auto tsq = getSquare(to);
-   const ChessFigure ttype = static_cast<ChessFigure>(tsq >> 1);
-   const bool tcolor = (tsq & 1);
-   if ( stype == ChessFigure::King && ttype == ChessFigure::Rook && scolor == tcolor ) { // castling
-      set(from, false, ChessFigure::None);
-      set(to,   false, ChessFigure::None);
-      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_KING : SHORT_CASTLE_KING), color_, ChessFigure::King);
-      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK), color_, ChessFigure::Rook);
+   if ( ssq == ChessSquare(ChessFigure::King, tsq.color()) && tsq.figure() == ChessFigure::Rook ) { // castling
+      set(from, ChessSquare());
+      set(to,   ChessSquare());
+      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_KING : SHORT_CASTLE_KING), ChessSquare(ChessFigure::King, color_));
+      set(Pos(from.row, to.col < from.col ? LONG_CASTLE_ROOK : SHORT_CASTLE_ROOK), ChessSquare(ChessFigure::Rook, color_));
    } else {
-      set(from, false, ChessFigure::None);
-      set(to, color_, isPromotion(from, to, stype) ? promoteTo : stype);
+      set(from, ChessSquare());
+      if ( isPromotion(from, to, ssq.figure()) ) {
+         set(to, ChessSquare(promoteTo, color_));
+      } else {
+         set(to, ssq);
+      }
    }
 
    if ( isEnpassantTarget(to) ) {
-      set(to.towardCenter(), false, ChessFigure::None);
+      set(to.towardCenter(), ChessSquare());
    }
 
    color_ = !color_;
@@ -447,13 +432,13 @@ ChessBoard::applyMove(const Pos& from, const Pos& to, const ChessFigure promoteT
       clocks_[FULL_CLOCK]++;
    }
 
-   if ( stype == ChessFigure::Pawn || ttype != ChessFigure::None ) {
+   if ( ssq.figure() == ChessFigure::Pawn || !tsq.empty() ) {
       clocks_[HALF_CLOCK] = 0;
    } else {
       clocks_[HALF_CLOCK]++;
    }
 
-   enpassant_ = isFastPawn(from, to, stype) ? to.pcol() : CHAR_INVALID;
+   enpassant_ = isFastPawn(from, to, ssq.figure()) ? to.pcol() : CHAR_INVALID;
 }
 
 bool
@@ -485,10 +470,10 @@ intersect(const Pos& pos, const Pos& dir, const Pos& king, const Pos& checker) {
 }
 
 bool
-ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned char check, const Pos& checker) const {
-   bool pinned = stype != ChessFigure::King && isPinned(pos);
+ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& sfig, unsigned char check, const Pos& checker) const {
+   bool pinned = sfig != ChessFigure::King && isPinned(pos);
    bool easy = !pinned && !check;
-   switch ( stype ) {
+   switch ( sfig ) {
       case ChessFigure::Pawn:
          {
             Pos dir(1, 0); // if moving +2 is possible, then moving +1 is also possible
@@ -547,11 +532,11 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& stype, unsigned cha
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
                for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
-                  if ( dir.null() || ( stype == ChessFigure::Rook && !dir.isAxialDir() ) || ( stype == ChessFigure::Bishop && dir.isAxialDir() ) ) {
+                  if ( dir.null() || ( sfig == ChessFigure::Rook && !dir.isAxialDir() ) || ( sfig == ChessFigure::Bishop && dir.isAxialDir() ) ) {
                      continue;
                   }
                   Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
-                  if ( test.valid() && ( easy ? ( isEmpty(test) || getColor(test) != color_ ) : isMoveValid(pos, test, pinned, check) ) ) {
+                  if ( test.valid() && ( easy ? ( isEmpty(test) || getSquare(test).color() != color_ ) : isMoveValid(pos, test, pinned, check) ) ) {
                      return true;
                   }
                }
@@ -580,16 +565,13 @@ ChessBoard::listMobilePieces(MiniPosVector& pawns, MiniPosVector& pieces) const 
       } else {
          Pos pos;
          for ( pos.row = 0; pos.row < NUMBER_OF_ROWS; pos.row++ ) {
-            unsigned psq = data_[pos.row].getData();
             for ( pos.col = 0; pos.col < NUMBER_OF_COLS; pos.col++ ) {
-               const ChessFigure ptype = static_cast<ChessFigure>((psq & 15) >> 1);
-               const bool pcolor = (psq & 1);
-               if ( ptype != ChessFigure::None && pcolor == color_ ) {
-                  if ( isMobilePiece(pos, ptype, cktype, checker) ) {
-                     push_back(ptype == ChessFigure::Pawn ? pawns : pieces, pos);
+               auto psq = getSquareUnsafe(pos);
+               if ( !psq.empty() && psq.color() == color_ ) {
+                  if ( isMobilePiece(pos, psq.figure(), cktype, checker) ) {
+                     push_back(psq.figure() == ChessFigure::Pawn ? pawns : pieces, pos);
                   }
                }
-               psq >>= 4;
             }
          }
       }
@@ -639,6 +621,16 @@ std::ostream& operator<<(std::ostream& os, const MiniPosVector& vec) {
       first = false;
    }
    os << "}";
+   return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const ChessSquare& sq) {
+   os << toChar(sq);
+   return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const ChessRow& row) {
+   row.debugPrint(os, BOARD_DRAW_COL_SEPARATOR);
    return os;
 }
 

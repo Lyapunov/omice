@@ -33,7 +33,7 @@ constexpr char BOARD_DRAW_CORNER= '*';
 constexpr char CHAR_INVALID='-';
 constexpr unsigned char WHITE = 1;
 constexpr unsigned char BLACK = 0;
-constexpr unsigned char INVALID_COLOR = 255;
+constexpr unsigned char INVALID_MARKER = 255;
 const std::string FIGURE_CONVERTER_BLACK = " pnbrqk";
 const std::array<unsigned char, 2> COLORS = {BLACK, WHITE};
 
@@ -57,6 +57,40 @@ ChessFigure toFigure( char chr ) {
    return posw != std::string::npos ? static_cast<ChessFigure>(posw) : ChessFigure::None;
 }
 
+struct ChessSquare {
+   ChessSquare() : data_(0) {}
+   ChessSquare(unsigned char data) : data_(data) {}
+   ChessSquare(ChessFigure fig, bool col = false) : data_((static_cast<unsigned>(fig) << 1)+col) {}
+   bool color() const { return data_ & 1; }
+   bool empty() const { return !(data_ & 14); }
+   ChessFigure figure() const { return static_cast<ChessFigure>((data_ >> 1) & 7); }
+   unsigned char data() const { return data_; }
+   bool equals( const ChessSquare& rhs ) const { return data_ == rhs.data_; }
+   unsigned char data_;
+};
+
+std::ostream& operator<<(std::ostream& os, const ChessSquare& sq);
+
+bool operator==( const ChessSquare& lhs, const ChessSquare& rhs ) {
+   return lhs.equals(rhs);
+}
+
+struct ChessSquarePair {
+   ChessSquarePair() : data_(0) {}
+   ChessSquare get(unsigned char i) const { return ChessSquare((data_ >> (i << 2)) & 15); }
+   void set(unsigned char i, const ChessSquare& sq) { 
+      data_ = (data_ & (255 - (15 << (i << 2)))) + (sq.data() << (i << 2));
+   }
+   unsigned char data_;
+};
+
+char toChar( const ChessSquare& sq ) {
+   return toChar(sq.color(), sq.figure());
+}
+
+template <class T> inline T tabs(const T& v) { return v >= 0 ? v : -v; }
+template <class T> inline T tsgn(const T& v) { return v ? ( v >= 0 ? +1 :-1 ) : 0; }
+
 struct Pos {
    Pos(char prow = 0, char pcol = 0) : row(prow), col(pcol) {}
    bool equals( const Pos& rhs ) const { return row == rhs.row && col == rhs.col; }
@@ -79,7 +113,7 @@ struct Pos {
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
    Pos mul(char n) const { return Pos(row*n, col*n); }
    Pos towardCenter() const { return Pos(row < HALF_ROW ? row + 1 : row - 1, col); }
-   Pos dir() const;
+   Pos dir() const { return ( !row || !col || tabs(row) == tabs(col) ? Pos(tsgn(row), tsgn(col)) : Pos(0, 0) ); }
    Pos neg() const { return Pos(-row, -col); }
    char dot(const Pos& rhs) const { return rhs.row * row + rhs.col * col; }
    bool isAxialDir() const { return !row || !col; }
@@ -107,6 +141,10 @@ Pos INVALID = Pos(-1, -1);
 Pos NULLPOS = Pos(0, 0);
 
 std::ostream& operator<<(std::ostream& os, const Pos& pos);
+
+bool operator==( const Pos& lhs, const Pos& rhs ) {
+   return lhs.equals(rhs);
+}
 
 struct Counter {
    void add(char col) { value_++; }
@@ -153,52 +191,44 @@ void set(MiniPosVector& vec, size_t i, const Pos& pos) { vec.set(i, pos.code());
 void push_back(MiniPosVector& vec, const Pos& pos) { vec.push_back(pos.code()); }
 std::ostream& operator<<(std::ostream& os, const MiniPosVector& vec);
 
+struct MyBoard {
+   std::array<std::array<unsigned char, 8>, 8> data_;
+};
+
 struct ChessRow {
-   ChessRow() : data_(0) {}
+   ChessRow() : data_() {}
 
-   void clear() { data_ = 0; }
-   void set(unsigned col, bool color, const ChessFigure& fig) { data_ = (data_ & ~(unsigned(15) << (col << 2))) | (((static_cast<unsigned>(fig) << 1)+color) << (col << 2)); }
+   void clear() { data_.fill(ChessSquarePair()); }
+   void set(unsigned col, const ChessSquare& sq) { data_[col >> 1].set(col & 1, sq); }
 
-   bool getColor(unsigned char col) const { return (data_ >> (col << 2)) & 1; }
-   ChessFigure getFigure(unsigned char col) const { return static_cast<ChessFigure>((data_ >> ((col << 2)+1)) & 7); }
-   bool isEmpty(unsigned char col) const { return !((data_ >> ((col << 2)+1)) & 7); }
-   unsigned getSquare(unsigned char col) const { return (data_ >> (col << 2)) & 15; }
-   unsigned getData() const { return data_; }
+   ChessSquare getSquare(unsigned char col) const { return data_[col >> 1].get(col & 1); }
+   bool isEmpty(unsigned char col) const { return getSquare(col).empty(); }
 
-   template <class Collector>
-   char iter(const bool color, const ChessFigure& fig) const {
-      Collector coll;
-      auto acc = data_;
-      for ( char col = 0; col < NUMBER_OF_COLS_CHAR; col++ ) {
-         if ( static_cast<ChessFigure>((acc >> 1) & 7) == fig && (acc & 1) == color ) {
-            coll.add(col);
-            if ( Collector::QUICK ) {
-               return coll.value_;
-            }
+   unsigned count(const ChessSquare& tsq) const {
+      unsigned retval = 0;
+      for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
+         if ( getSquare(col) == tsq ) {
+            
+            retval++;
          }
-         acc >>= 4;
       }
-      return coll.value_;
+      return retval;
    }
-   unsigned count(const bool color, const ChessFigure& fig) const { return iter<Counter>(color, fig); }
-   bool find(const bool color, const ChessFigure& fig, Pos& result) const { return ( result.col = iter<Finder>(color, fig) ) >= 0; }
 
    void debugPrint(std::ostream& os, char separator) const {
      for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
-        os << separator << toChar(getColor(col), getFigure(col));
+        os << separator << getSquare(col);
      }
      os << separator;
    }
 
-   unsigned data_;
+   std::array<ChessSquarePair, (NUMBER_OF_COLS+1)/2> data_;
 };
 
-bool operator==( const Pos& lhs, const Pos& rhs ) {
-   return lhs.equals(rhs);
-}
+std::ostream& operator<<(std::ostream& os, const ChessRow& row);
 
 struct ChessBoard {
-   ChessBoard() : data_(), color_(INVALID_COLOR), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}) {}
+   ChessBoard() : data_(), color_(INVALID_MARKER), casts_({CHAR_INVALID, CHAR_INVALID, CHAR_INVALID, CHAR_INVALID}), enpassant_(CHAR_INVALID), clocks_({0,0}), kings_({INVALID, INVALID}) {}
 
    bool initFEN(const std::string& fen, const std::string& white, const std::string& casts, const std::string& enpassant, unsigned char halfMoveClock, unsigned char fullClock); 
    bool initFEN(const std::string& str);
@@ -212,7 +242,7 @@ struct ChessBoard {
    Pos getCastPos(bool color, unsigned i) const {
       return getCastPos(i + (color ? 0 : CASTS_SIDES));
    }
-   bool valid() const { return color_ != INVALID_COLOR; } // validHeavy always must run after init
+   bool valid() const { return color_ != INVALID_MARKER; } // validHeavy always must run after init, moves always bring us from valid to valid
    bool validHeavy() const;
    void debugPrintRowSeparator(std::ostream& os) const {
       for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
@@ -220,16 +250,14 @@ struct ChessBoard {
       }
       os << BOARD_DRAW_CORNER << std::endl;
    }
-   bool getColor(const Pos& pos) const { return data_[pos.row].getColor(pos.col); }
-   ChessFigure getFigure(const Pos& pos) const { return pos.valid() ? getFigureUnsafe(pos) : ChessFigure::None; }
-   ChessFigure getFigureUnsafe(const Pos& pos) const { return data_[pos.row].getFigure(pos.col); }
-   unsigned getSquare(const Pos& pos) const { return data_[pos.row].getSquare(pos.col); }
+   ChessSquare getSquare(const Pos& pos) const { return pos.valid() ? data_[pos.row].getSquare(pos.col) : ChessSquare(); }
+   ChessSquare getSquareUnsafe(const Pos& pos) const { return data_[pos.row].getSquare(pos.col); }
    bool isEmpty(const Pos& pos) const { return data_[pos.row].isEmpty(pos.col); }
-   void set(const Pos& pos, bool color, ChessFigure fig) {
+   void set(const Pos& pos, const ChessSquare& sq) {
       assert( pos.row >= 0 && pos.row < NUMBER_OF_ROWS );
-      data_[pos.row].set(pos.col, color, fig);
-      if ( fig == ChessFigure::King ) {
-         kings_[color] = pos;
+      data_[pos.row].set(pos.col, sq);
+      if ( sq.figure() == ChessFigure::King ) {
+         kings_[sq.color()] = pos;
       }
    }
    bool isEnpassantTarget(const Pos& to) const {
@@ -256,23 +284,12 @@ struct ChessBoard {
    bool check(bool color) const { return countWatchers(!color, kings_[color], 1); }
    unsigned char getChecker(bool color, Pos& pos) const { return countWatchers(!color, kings_[color], 2, INVALID, pos); }
 
-   unsigned count(const bool color, const ChessFigure& fig) const {
+   unsigned count(const ChessSquare& sq) const {
       unsigned retval = 0;
       for ( const auto& elem : data_ ) {
-         retval += elem.count(color, fig);
+         retval += elem.count(sq);
       }
       return retval;
-   }
-
-   Pos find(const bool color, const ChessFigure& fig) const {
-      Pos result;
-      for ( int row = 0; row < NUMBER_OF_ROWS ; row++ ) {
-         if ( data_[row].find(color, fig, result) ) {
-            result.row = row;
-            return result;
-         }
-      }
-      return INVALID;
    }
 
    void applyMove(const Pos& from, const Pos& to, const ChessFigure promoteTo = ChessFigure::Queen);
