@@ -101,13 +101,7 @@ struct Pos {
    char pcol() const { return 'a' + col; }
    char prow() const { return '1' + row; }
    unsigned char code() const { return (static_cast<unsigned char>(row) << 3) + static_cast<unsigned char>(col); }
-   void debugPrint(std::ostream& os) const {
-      if ( valid() ) {
-         os << pcol() << prow();
-      } else {
-         os << "NA";
-      }
-   }
+   void debugPrint(std::ostream& os) const { os << ( valid() ? std::string() + pcol() + prow() : "N/A" ); }
    void vecPrint(std::ostream& os) const { os << "(col:" << int(col) << ", row:" << int(row) << ")"; }
    Pos add(const Pos& rhs) const { return Pos(row+rhs.row, col+rhs.col); }
    Pos sub(const Pos& rhs) const { return Pos(row-rhs.row, col-rhs.col); }
@@ -145,18 +139,6 @@ std::ostream& operator<<(std::ostream& os, const Pos& pos);
 bool operator==( const Pos& lhs, const Pos& rhs ) {
    return lhs.equals(rhs);
 }
-
-struct Counter {
-   void add(char col) { value_++; }
-   char value_ = 0;
-   static constexpr bool QUICK = false;
-};
-
-struct Finder {
-   void add(char col) { value_ = col; }
-   char value_ = -1;
-   static constexpr bool QUICK = true;
-};
 
 template <unsigned BITS = 6>
 struct MiniVector {
@@ -203,12 +185,10 @@ struct ChessRow {
 
    ChessSquare getSquare(unsigned char col) const { return data_[col >> 1].get(col & 1); }
    bool isEmpty(unsigned char col) const { return getSquare(col).empty(); }
-
    unsigned count(const ChessSquare& tsq) const {
       unsigned retval = 0;
       for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
          if ( getSquare(col) == tsq ) {
-            
             retval++;
          }
       }
