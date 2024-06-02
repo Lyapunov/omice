@@ -134,30 +134,33 @@ std::ostream& operator<<(std::ostream& os, const Pos& pos);
 bool operator==( const Pos& lhs, const Pos& rhs ) { return lhs.equals(rhs); }
 
 template <unsigned BITS = 6>
-struct MiniVector {
-   static constexpr size_t BYTESIZE = 8;
-   static constexpr size_t CAPACITY = (sizeof(unsigned long) * BYTESIZE -4) / BITS;
+class MiniVector {
+public:
+   static constexpr size_t BITS_IN_A_BYTE = 8;
+   static constexpr size_t BITS_FOR_SIZE = 4;
+   static constexpr size_t CAPACITY = (sizeof(unsigned long) * BITS_IN_A_BYTE - BITS_FOR_SIZE) / BITS;
    static constexpr unsigned long BITMASK = (1 << BITS)-1;
-   unsigned char size() const {return get(CAPACITY);}
+   unsigned char size() const { return get(CAPACITY); }
    unsigned char get(size_t i) const { return (storage_ >> (BITS * i)) & BITMASK; }
    void clear() { storage_ = 0; }
    void set(size_t i, unsigned char num) { storage_ = (storage_ & ~(BITMASK << (BITS*i))) | static_cast<unsigned long>(num & BITMASK) << (BITS*i); }
-   void setSize(unsigned char num) { set(CAPACITY, num); }
    void push_back(unsigned char num) {
       unsigned char siz = size();
       if ( unsigned(siz + 1) < CAPACITY ) {
-         setSize(siz+1);
+         changeSize(1);
          set(siz, num);
       }
    }
    unsigned char pop_back() {
       unsigned char siz = size();
-      if ( siz == 0 ) {
+      if ( !siz ) {
          return 0;
       }
-      setSize(siz-1);
+      changeSize(255);
       return get(siz-1);
    }
+private:
+   void changeSize(unsigned long diff) { storage_ += diff << ( BITS * CAPACITY ); }
    unsigned long storage_ = 0;
 };
 typedef MiniVector<6> MiniPosVector;

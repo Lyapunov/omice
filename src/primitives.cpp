@@ -532,7 +532,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& sfig, unsigned char
             Pos dir;
             for ( dir.row = -1; dir.row <= +1; dir.row++ ) {
                for ( dir.col = -1; dir.col <= +1; dir.col++ ) {
-                  if ( dir.null() || ( sfig == ChessFigure::Rook && !dir.isAxialDir() ) || ( sfig == ChessFigure::Bishop && dir.isAxialDir() ) ) {
+                  if ( dir.null() || sfig == ( dir.isAxialDir() ? ChessFigure::Bishop : ChessFigure::Rook ) ) {
                      continue;
                   }
                   Pos test = check ? intersect(pos, dir, kings_[color_], checker) : pos.add(dir);
