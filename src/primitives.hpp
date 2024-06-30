@@ -188,10 +188,10 @@ struct ChessRow {
    }
 
    void debugPrint(std::ostream& os, char separator) const {
-     for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
-        os << separator << getSquare(col);
-     }
-     os << separator;
+      for ( int col = 0; col < NUMBER_OF_COLS; col++ ) {
+         os << separator << getSquare(col);
+      }
+      os << separator;
    }
 
    std::array<ChessSquarePair, (NUMBER_OF_COLS+1)/2> data_;

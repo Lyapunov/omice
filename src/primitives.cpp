@@ -493,7 +493,7 @@ ChessBoard::isMobilePiece(const Pos& pos, const ChessFigure& sfig, unsigned char
                Pos kpos = color_ ? pos.add(KNIGHT_FIRST_DIR) : pos.sub(KNIGHT_FIRST_DIR);
                Pos kshift = color_ ? KNIGHT_FIRST_SHIFT : KNIGHT_FIRST_SHIFT.neg();
                for ( size_t i = 0; i < 8; i ++ ) {
-                  if ( kpos.valid() && isEmpty(kpos) ) {
+                  if ( kpos.valid() && ( easy ? isEmpty(kpos) : isMoveValid(pos, kpos, pinned, check) ) ) {
                      return true;
                   }
                   kpos.move(kshift);
