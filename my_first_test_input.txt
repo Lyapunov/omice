@@ -28,6 +28,7 @@
 (SN) 1. d4 f5 2. Na3 e6 3. Bd2 Bxa3 4. bxa3 b6 5. Bb4 Nf6 6. e3 Ne4 7. Nf3 Bb7
      8. Be2 Na6 9. O-O Qf6 10. h3 g5 11. Nh2 O-O-O 12. Bf3 Ba8 13. Qe1 Bc6
      14. Bh5
+(SO) 1. e4 g6 2. d4 d6 3. Nf3 a5 4. a4 e6 5. Nbd2 Na6 6. g3 b6
 (SX) 1. e4 c5 2. a4 c4 3. b4 cxb3
 (SY) 1. e4 b5 2. e5 f5 3. exf6
 
@@ -59,3 +60,4 @@
 (N1) 1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 g6 6. Be3 Bg7 7. f3 Nc6
      8. Qd2 Bd7 9. O-O-O Qa5 10. Kb1 Rc8 11. g4 h6 12. h4 a6 13. Be2 Ne5
      14. g5 hxg5 15. hxg5 Rxh1 16. gxf6 Rxd1 17. Nxd1 Qxd2 18. fxg7
+(O1) 1. d4 e6 2. c4 f5 3. Nc3 Nf6 4. a3 Be7 5. e3 O-O 6. Bd3 d5 7. Nf3 c6
