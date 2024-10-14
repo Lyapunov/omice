@@ -35,6 +35,11 @@
 # Then some of my favourites
 
 (A1) 1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. cxd5 exd5
+(A2) 1. f4 d5 2. e3 Nf6 3. b3 e6 4. Bb2 Be7 5. Bd3 b6 6. Nc3 Bb7 7. Nf3 Nbd7
+     8. O-O O-O 9. Ne2 c5 10. Ng3 Qc7 11. Ne5 Nxe5 12. Bxe5 Qc6
+     13. Qe2 a6 14. Nh5 Nxh5 15. Bxh7+ Kxh7 16. Qxh5+ Kg8 17. Bxg7 Kxg7
+     18. Qg4+ Kh7 19. Rf3 e5 20. Rh3+ Qh6 21. Rxh6+ Kxh6 22. Qd7 Bf6
+     23. Qxb7 Kg7 24. Rf1 Rab8 25. Qd7 Rfd8 26. Qg4+ Kf8
 (B1) 1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Bd3 Be7 6. Nf3 Nc6
      7. O-O Nxd4 8. Be3 Nxf3+ 9. Qxf3 O-O 10. Rad1 Bd7 11. Bc4 Qe8
      12. Nxf6+ Bxf6 13. Qxb7 Bc6 14. Qxc7 Rc8 15. Qxa7
